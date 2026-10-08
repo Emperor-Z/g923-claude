@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run the g923-claude daemon from the repo's virtualenv.
+here="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec "$here/.venv/bin/python" -m g923.daemon "$@"
