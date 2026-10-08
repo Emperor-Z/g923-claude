@@ -99,7 +99,7 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 | D-pad ▲▼ | Switch set: `abc` → `ABC` → `123` → symbols |
 | Dial Enter | Commit the character |
 | ✕ | Space |
-| ○ | Backspace |
+| ○ | Backspace (hold to repeat) |
 | □ | Next suggested word |
 | △ | Accept suggested word |
 | Gas / Brake | Still Enter / Esc |
@@ -107,6 +107,8 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 Letters run **a to z** and wrap around, so spin anticlockwise to reach the end of the alphabet fast (`z` is one click back from `a`). The dial keeps its position between characters, so the first press after a commit re-shows the same letter: double letters are one press plus Enter.
 
 **What you see is what you get.** A previewed character or suggested word that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
+
+**Holding ○ clears faster.** One press is one character; hold it for 0.4 s and backspace repeats like a keyboard key, and after 1.5 s of holding it deletes whole words (`Ctrl+W`) instead. The timings live in `[type]` as `backspace_repeat_after_s`, `backspace_repeat_rate_s` and `backspace_word_after_s`.
 
 **Word suggestions.** After two committed letters, a notification shows the top three guesses. □ types the first one inline, and pressing □ again swaps it for the next; △ accepts it and adds a space (if nothing is showing, △ inserts the top guess directly). Guesses come from a built-in list (`g923/words.txt`) blended with words from your own past Claude Code prompts (`~/.claude/history.jsonl`), which are read locally at startup and never written anywhere.
 
