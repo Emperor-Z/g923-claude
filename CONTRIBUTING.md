@@ -18,9 +18,9 @@ The tests replay synthetic wheel events, so you don't need a wheel to work on th
 This is the most useful contribution.
 
 1. Run `bin/g923d --dump` and press every button, pedal and shifter position.
-2. Copy `config.toml` to `configs/<vendor>-<model>.toml` and fill in `[device] name_match`, `[pedals]` and `[buttons]`.
+2. Create `configs/<vendor>-<model>.toml` with `[device] name_match` and only the `[pedals]` / `[buttons]` entries that differ from `config.toml` (configs are layered over the defaults).
 3. Try it: `bin/g923d --config configs/<vendor>-<model>.toml --dry-run`.
-4. Open a PR with the config and the `--dump` output, and add your wheel to the table in the README.
+4. Open a PR with the config and the `--dump` output, and add your wheel to the tables in `README.md` and `configs/README.md`. `tests/test_config.py` checks every shipped config.
 
 ## Code changes
 

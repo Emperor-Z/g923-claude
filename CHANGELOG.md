@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
+## [0.5.1] - 2026-10-08
+
+### Added
+- `configs/` for other wheels, starting with an (untested) Logitech G29 config
+- Published to PyPI: `pipx install g923-claude`
+
+### Changed
+- Config files are layered over the defaults, so user and wheel configs only list what they change
+
 ## [0.5.0] - 2026-10-08
 
 ### Added
