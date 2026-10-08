@@ -42,22 +42,7 @@ Open Claude Code, focus the terminal, press **PS** on the wheel. You're driving.
 
 ## Controls
 
-```
-            [L-paddle ↑]                         [R-paddle ↓]
-   ┌──────────────────────────────────────────────────────────┐
-   │    ▲                                           △ todos    │
-   │  ◀ ✚ ▶  arrows                       □ always  ○ no/Esc  │
-   │    ▼                                           ✕ yes/⏎    │
-   │  L2: transcript                        R2: background    │
-   │  L3: voice (hold)                      R3: autocomplete  │
-   │        [Share: DRIVE]  [Options: TYPE]  + −  ◉dial  ⏎    │
-   │                   (PS: ARM / DISARM)                     │
-   └──────────────────────────────────────────────────────────┘
-   steer left = scroll up · steer right = scroll down (speed ∝ angle)
-
-   Pedals:   [CLUTCH: shift / mode]  [BRAKE: Esc]  [GAS: Enter]
-   Shifter:  1 Haiku · 2 Sonnet · 3 Opus · 4 Fable · 5 Opus 1M · 6 opusplan · R rewind
-```
+<img src="docs/img/controls.svg" alt="Controls: wheel buttons, pedals and shifter mapped to Claude Code actions" width="100%">
 
 ### Drive mode (default)
 
