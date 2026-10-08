@@ -108,6 +108,9 @@ sets = [
 ]
 suggest_after = 2        # letters typed before word suggestions kick in
 history_file = "~/.claude/history.jsonl"
+backspace_repeat_after_s = 0.4  # hold the backspace button this long before it repeats
+backspace_repeat_rate_s = 0.1   # seconds between repeats once it starts
+backspace_word_after_s = 1.5    # keep holding and repeats delete whole words (Ctrl+W)
 
 [type_keys]
 # Type mode overrides; other buttons keep their Drive mode action.

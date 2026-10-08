@@ -72,6 +72,7 @@ class Daemon:
         eff = cfg["effort"]
         self.effort = eff["levels"].index(eff["start"])
         self.claude_state = "idle"  # idle | busy | attention, from hooks
+        self.backspace_task = None
 
     # --- input dispatch -------------------------------------------------
 
@@ -110,10 +111,12 @@ class Daemon:
         if self.mode == "type" and name in self.cfg["type_keys"]:
             if down:
                 self.type_button(name)
+            if self.cfg["type_keys"][name] == "backspace":
+                self.hold_backspace(down)
             return
         # Anything else falls through to Drive mode, so pedals, paddles and
         # gears keep working while typing.
-        self.typer.finalize()
+        self.finalize()
         self.drive_button(name, down)
 
     def pedal(self, name, down):
@@ -121,7 +124,7 @@ class Daemon:
             return
         if down and self.claude_state == "attention":
             self.claude_state = "busy"
-        self.typer.finalize()
+        self.finalize()
         feet = self.cfg["feet"]
         if name == "clutch":
             if down:
@@ -168,10 +171,44 @@ class Daemon:
         }
         actions[self.cfg["type_keys"][name]]()
 
+    def hold_backspace(self, down):
+        # One delete per press; holding it repeats like a keyboard key.
+        if not down:
+            self.stop_backspace()
+            return
+        if self.backspace_task:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # no event loop when a test drives the daemon directly
+        self.backspace_task = loop.create_task(self.backspace_loop())
+
+    async def backspace_loop(self):
+        t = self.cfg["type"]
+        held = time.monotonic()
+        await asyncio.sleep(t["backspace_repeat_after_s"])
+        while True:
+            if time.monotonic() - held >= t["backspace_word_after_s"]:
+                self.typer.backspace_word()
+            else:
+                self.typer.backspace()
+            await asyncio.sleep(t["backspace_repeat_rate_s"])
+
+    def stop_backspace(self):
+        if self.backspace_task:
+            self.backspace_task.cancel()
+            self.backspace_task = None
+
+    def finalize(self):
+        """Drop any held backspace and leave the visible prompt alone."""
+        self.stop_backspace()
+        self.typer.finalize()
+
     def set_mode(self, mode):
         if mode == self.mode:
             return
-        self.typer.finalize()
+        self.finalize()
         self.mode = mode
         self.fb.notify(f"{mode.title()} mode",
                        "D-pad picks, dial Enter commits" if mode == "type" else "")
@@ -226,6 +263,7 @@ class Daemon:
                        f"{self.mode.title()} mode" if armed else "Inputs ignored")
 
     def release_all(self):
+        self.stop_backspace()
         for key in list(self.held):
             self.out.hold(key, False)
         self.held.clear()
