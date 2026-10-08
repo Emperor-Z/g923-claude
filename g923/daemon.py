@@ -324,12 +324,17 @@ class Daemon:
                     await asyncio.sleep(2)
                     continue
                 print(f"connected: {dev.name} ({dev.path})", flush=True)
+                if hasattr(self.fb, "attach_wheel"):
+                    self.fb.attach_wheel(dev, self.cfg.get("ffb", {}))
                 try:
                     await self.read_loop(dev)
                 except OSError:
                     print("device disconnected", flush=True)
                     self.release_all()
                     await asyncio.sleep(1)
+                finally:
+                    if hasattr(self.fb, "detach_wheel"):
+                        self.fb.detach_wheel()
         finally:
             for t in tasks:
                 t.cancel()
@@ -354,15 +359,35 @@ def dump(cfg):
                 print(f"ABS {axis:<10} {ev.value}")
 
 
+def test_ffb(cfg, which):
+    from .ffb import EFFECTS, Wheel
+
+    dev = find_device(cfg["device"]["name_match"])
+    if not dev:
+        sys.exit("wheel not found")
+    wheel = Wheel(dev, cfg.get("ffb", {}))
+    if not wheel.ok:
+        sys.exit("no force feedback on this wheel; is the new-lg4ff driver loaded?")
+    for name in (EFFECTS if which == "all" else [which]):
+        print(f"playing {name}", flush=True)
+        wheel.play(name)
+        time.sleep(1.6)
+    wheel.close()
+
+
 def main():
     ap = argparse.ArgumentParser(prog="g923d", description=__doc__)
     ap.add_argument("--config", help="path to config.toml")
     ap.add_argument("--dry-run", action="store_true", help="print actions instead of sending keys")
     ap.add_argument("--dump", action="store_true", help="print raw wheel events")
+    ap.add_argument("--test-ffb", metavar="EFFECT", nargs="?", const="all",
+                    help="play force-feedback effects (done, attention, grind, arm, disarm, all)")
     args = ap.parse_args()
     cfg = config.load(args.config)
     if args.dump:
         return dump(cfg)
+    if args.test_ffb:
+        return test_ffb(cfg, args.test_ffb)
     out = DryRun() if args.dry_run else Injector()
     daemon = Daemon(cfg, out, Feedback(cfg))
     try:
