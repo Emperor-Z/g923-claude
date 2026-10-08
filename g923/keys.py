@@ -99,6 +99,9 @@ class Injector:
             if shift:
                 self._emit(e.KEY_LEFTSHIFT, 0)
 
+    def pause(self, seconds):
+        time.sleep(seconds)
+
     def scroll(self, notches):
         self.mouse.write(e.EV_REL, e.REL_WHEEL, notches)
         self.mouse.syn()
@@ -122,6 +125,9 @@ class DryRun:
         for ch in text:
             char_keys(ch)
         print(f"  type  {text!r}", flush=True)
+
+    def pause(self, seconds):
+        pass
 
     def scroll(self, notches):
         print(f"  scroll {notches:+d}", flush=True)

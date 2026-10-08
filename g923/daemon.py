@@ -66,6 +66,8 @@ class Daemon:
         self.steer_value = s["center"]  # absinfo reads 0 until the first report
         self.scroll_acc = 0.0
         self.held = set()
+        eff = cfg["effort"]
+        self.effort = eff["levels"].index(eff["start"])
 
     # --- input dispatch -------------------------------------------------
 
@@ -115,6 +117,14 @@ class Daemon:
     # --- drive mode -----------------------------------------------------
 
     def drive_button(self, name, down):
+        if name.startswith("gear_"):
+            if down:
+                self.shift(name)
+            return
+        if name in ("plus", "minus"):
+            if down:
+                self.step_effort(1 if name == "plus" else -1)
+            return
         action = self.cfg["drive"].get(name)
         if not action:
             return
@@ -124,6 +134,45 @@ class Daemon:
             (self.held.add if down else self.held.discard)(key)
         elif down:
             self.out.press(action)
+
+    # --- shifter and effort ---------------------------------------------
+
+    def shift(self, gear):
+        if self.cfg["shifter"]["require_clutch"] and self.clutch_down_at is None:
+            self.fb.grind()
+            return
+        self.clutch_used = True
+        commands = self.cfg["shifter"].get(gear, [])
+        label = gear.removeprefix("gear_").upper()
+        self.fb.notify(f"Gear {label}", ", ".join(commands))
+        self.run_commands(commands)
+
+    def step_effort(self, step):
+        levels = self.cfg["effort"]["levels"]
+        new = max(0, min(len(levels) - 1, self.effort + step))
+        if new == self.effort:
+            self.fb.notify("Effort", f"already {levels[new]}")
+            return
+        self.effort = new
+        self.fb.notify("Effort", levels[new])
+        self.run_commands([f"/effort {levels[new]}"])
+
+    def run_commands(self, commands):
+        """Send slash commands without losing the user's draft prompt."""
+        if commands == ["@rewind"]:
+            self.out.press("esc")
+            self.out.press("esc")
+            return
+        # A placeholder keeps the input non-empty, so Ctrl+S always stashes
+        # (on an empty prompt it would restore an older stash instead).
+        self.out.type("x")
+        self.out.press("ctrl+s")
+        for cmd in commands:
+            self.out.type(cmd)
+            self.out.press("enter")
+            self.out.pause(0.25)
+        self.out.press("ctrl+s")
+        self.out.press("backspace")
 
     # --- state ----------------------------------------------------------
 
