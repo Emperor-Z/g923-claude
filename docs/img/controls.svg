@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3f47"/>
+      <stop offset="1" stop-color="#16191e"/>
+    </linearGradient>
+    <linearGradient id="hub" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3038"/>
+      <stop offset="1" stop-color="#121418"/>
+    </linearGradient>
+    <style>
+      .lbl { font: 600 17px ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; fill: #e6edf3; }
+      .sub { font: 400 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #8b949e; }
+      .hd  { font: 700 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #ff5a36; letter-spacing: 2px; }
+      .key { font: 700 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-anchor: middle; }
+      .ln  { stroke: #4a515c; stroke-width: 1.5; fill: none; }
+      .dot { fill: #4a515c; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="800" rx="18" fill="#0b0e13"/>
+  <text x="40" y="52" class="hd">WHEEL</text>
+
+  <!-- steering hint -->
+  <path d="M390 120 A250 250 0 0 1 470 75" class="ln" stroke="#7aa7ff" stroke-width="3" marker-end="none"/>
+  <path d="M810 120 A250 250 0 0 0 730 75" class="ln" stroke="#7aa7ff" stroke-width="3"/>
+  <text x="300" y="98" class="lbl" fill="#7aa7ff" style="fill:#7aa7ff">steer ↺ scroll up</text>
+  <text x="760" y="98" class="lbl" style="fill:#7aa7ff">scroll down ↻</text>
+
+  <!-- wheel -->
+  <g transform="translate(600 330)">
+    <circle r="225" fill="none" stroke="url(#rim)" stroke-width="40"/>
+    <rect x="-6" y="-247" width="12" height="40" rx="4" fill="#ff5a36"/>
+    <path d="M-205 -12 L-80 -48 L-80 52 L-205 36 Z" fill="url(#hub)"/>
+    <path d="M205 -12 L80 -48 L80 52 L205 36 Z" fill="url(#hub)"/>
+    <path d="M-48 80 L48 80 L34 205 L-34 205 Z" fill="url(#hub)"/>
+    <circle r="100" fill="url(#hub)" stroke="#2e333b" stroke-width="2"/>
+  </g>
+
+  <!-- paddles (behind the wheel) -->
+  <rect x="385" y="160" width="26" height="70" rx="8" fill="#20252c" stroke="#59606b" stroke-width="2" transform="rotate(-25 398 195)"/>
+  <rect x="789" y="160" width="26" height="70" rx="8" fill="#20252c" stroke="#59606b" stroke-width="2" transform="rotate(25 802 195)"/>
+
+  <!-- d-pad -->
+  <g transform="translate(455 325)" fill="#59606b">
+    <rect x="-8" y="-26" width="16" height="52" rx="3"/>
+    <rect x="-26" y="-8" width="52" height="16" rx="3"/>
+  </g>
+  <!-- L2 L3 -->
+  <circle cx="470" cy="380" r="10" fill="#2a2f37" stroke="#8b949e" stroke-width="2"/>
+  <circle cx="500" cy="395" r="10" fill="#2a2f37" stroke="#8b949e" stroke-width="2"/>
+  <text x="470" y="384" class="key" style="fill:#8b949e;font-size:9px">L2</text>
+  <text x="500" y="399" class="key" style="fill:#8b949e;font-size:9px">L3</text>
+
+  <!-- face buttons -->
+  <g transform="translate(745 325)">
+    <circle cx="0" cy="-24" r="12" fill="#2a2f37" stroke="#4fd1c5" stroke-width="2"/>
+    <circle cx="24" cy="0" r="12" fill="#2a2f37" stroke="#ff6b81" stroke-width="2"/>
+    <circle cx="-24" cy="0" r="12" fill="#2a2f37" stroke="#d6a2e8" stroke-width="2"/>
+    <circle cx="0" cy="24" r="12" fill="#2a2f37" stroke="#7aa7ff" stroke-width="2"/>
+    <text x="0" y="-19" class="key" style="fill:#4fd1c5">△</text>
+    <text x="24" y="5" class="key" style="fill:#ff6b81">○</text>
+    <text x="-24" y="5" class="key" style="fill:#d6a2e8">□</text>
+    <text x="0" y="29" class="key" style="fill:#7aa7ff">✕</text>
+  </g>
+  <!-- R2 R3 -->
+  <circle cx="730" cy="380" r="10" fill="#2a2f37" stroke="#8b949e" stroke-width="2"/>
+  <circle cx="700" cy="395" r="10" fill="#2a2f37" stroke="#8b949e" stroke-width="2"/>
+  <text x="730" y="384" class="key" style="fill:#8b949e;font-size:9px">R2</text>
+  <text x="700" y="399" class="key" style="fill:#8b949e;font-size:9px">R3</text>
+
+  <!-- share / options / PS -->
+  <rect x="566" y="365" width="22" height="12" rx="4" fill="#2a2f37" stroke="#ffb86b" stroke-width="2"/>
+  <rect x="612" y="365" width="22" height="12" rx="4" fill="#2a2f37" stroke="#ffb86b" stroke-width="2"/>
+  <circle cx="600" cy="400" r="13" fill="#2a2f37" stroke="#f0f3f6" stroke-width="2"/>
+  <text x="600" y="404" class="key" style="fill:#f0f3f6;font-size:10px">PS</text>
+
+  <!-- dial, + -, enter -->
+  <circle cx="665" cy="445" r="16" fill="#c0392b" stroke="#ff7a5c" stroke-width="2"/>
+  <circle cx="665" cy="445" r="5" fill="#7d2016"/>
+  <text x="636" y="440" class="key" style="fill:#8b949e;font-size:14px">+</text>
+  <text x="636" y="460" class="key" style="fill:#8b949e;font-size:14px">−</text>
+  <circle cx="697" cy="458" r="8" fill="#2a2f37" stroke="#8b949e" stroke-width="2"/>
+
+  <!-- left callouts -->
+  <g>
+    <circle cx="392" cy="196" r="3" class="dot"/><path d="M392 196 H330" class="ln"/>
+    <text x="320" y="191" class="lbl" text-anchor="end">Left paddle</text>
+    <text x="320" y="211" class="sub" text-anchor="end">↑ up</text>
+
+    <circle cx="429" cy="325" r="3" class="dot"/><path d="M429 325 H330" class="ln"/>
+    <text x="320" y="320" class="lbl" text-anchor="end">D-pad</text>
+    <text x="320" y="340" class="sub" text-anchor="end">arrows · Type: ◀▶ letter, ▲▼ set</text>
+
+    <circle cx="460" cy="380" r="3" class="dot"/><path d="M460 380 L440 400 H330" class="ln"/>
+    <text x="320" y="395" class="lbl" text-anchor="end">L2</text>
+    <text x="320" y="415" class="sub" text-anchor="end">transcript (Ctrl+O)</text>
+
+    <circle cx="492" cy="403" r="3" class="dot"/><path d="M492 403 L460 455 H330" class="ln"/>
+    <text x="320" y="450" class="lbl" text-anchor="end">L3 (hold)</text>
+    <text x="320" y="470" class="sub" text-anchor="end">voice dictation</text>
+
+    <circle cx="566" cy="371" r="3" class="dot"/><path d="M566 371 L520 510 H330" class="ln"/>
+    <text x="320" y="505" class="lbl" text-anchor="end" style="fill:#ffb86b">Share</text>
+    <text x="320" y="525" class="sub" text-anchor="end">Drive mode</text>
+  </g>
+
+  <!-- right callouts -->
+  <g>
+    <circle cx="808" cy="196" r="3" class="dot"/><path d="M808 196 H870" class="ln"/>
+    <text x="880" y="191" class="lbl">Right paddle</text>
+    <text x="880" y="211" class="sub">↓ down</text>
+
+    <circle cx="757" cy="301" r="3" class="dot"/><path d="M757 301 L790 262 H870" class="ln"/>
+    <text x="880" y="257" class="lbl"><tspan style="fill:#4fd1c5">△</tspan> task list</text>
+    <text x="880" y="277" class="sub">Ctrl+T · Type: accept word</text>
+
+    <circle cx="781" cy="325" r="3" class="dot"/><path d="M781 325 H870" class="ln"/>
+    <text x="880" y="320" class="lbl"><tspan style="fill:#ff6b81">○</tspan> no / Esc · <tspan style="fill:#d6a2e8">□</tspan> always</text>
+    <text x="880" y="340" class="sub">Type: ○ backspace, □ suggest</text>
+
+    <circle cx="757" cy="349" r="3" class="dot"/><path d="M757 349 L790 385 H870" class="ln"/>
+    <text x="880" y="380" class="lbl"><tspan style="fill:#7aa7ff">✕</tspan> yes / Enter</text>
+    <text x="880" y="400" class="sub">Type: space</text>
+
+    <circle cx="740" cy="380" r="3" class="dot"/><path d="M740 380 L770 440 H870" class="ln"/>
+    <text x="880" y="435" class="lbl">R2 · R3</text>
+    <text x="880" y="455" class="sub">background (Ctrl+B) · Tab</text>
+
+    <circle cx="634" cy="371" r="3" class="dot"/><path d="M634 371 L690 500 H870" class="ln"/>
+    <text x="880" y="495" class="lbl" style="fill:#ffb86b">Options</text>
+    <text x="880" y="515" class="sub">Type mode</text>
+
+    <circle cx="681" cy="445" r="3" class="dot"/><path d="M681 445 L740 555 H870" class="ln"/>
+    <text x="880" y="550" class="lbl" style="fill:#ff7a5c">Dial · + −</text>
+    <text x="880" y="570" class="sub">↑↓ · Enter · effort up/down</text>
+  </g>
+
+  <!-- PS callout -->
+  <path d="M600 413 V575" class="ln"/>
+  <circle cx="600" cy="413" r="3" class="dot"/>
+  <text x="600" y="597" class="lbl" text-anchor="middle">PS: arm / disarm</text>
+
+  <!-- divider -->
+  <path d="M40 625 H1160" stroke="#21262d" stroke-width="2"/>
+
+  <!-- pedals -->
+  <text x="40" y="665" class="hd">PEDALS</text>
+  <g class="key" style="font-size:15px">
+    <rect x="40" y="682" width="150" height="76" rx="12" fill="#1b1f26" stroke="#8b949e" stroke-width="2"/>
+    <text x="115" y="712" style="fill:#e6edf3">CLUTCH</text>
+    <text x="115" y="735" class="sub" style="text-anchor:middle;font-size:12px">tap: mode</text>
+    <text x="115" y="750" class="sub" style="text-anchor:middle;font-size:12px">hold + shift: model</text>
+
+    <rect x="210" y="682" width="150" height="76" rx="12" fill="#1b1f26" stroke="#ff6b81" stroke-width="2"/>
+    <text x="285" y="712" style="fill:#ff6b81">BRAKE</text>
+    <text x="285" y="738" class="sub" style="text-anchor:middle;font-size:12px">Esc · stop Claude</text>
+
+    <rect x="380" y="682" width="150" height="76" rx="12" fill="#1b1f26" stroke="#4fd1c5" stroke-width="2"/>
+    <text x="455" y="712" style="fill:#4fd1c5">GAS</text>
+    <text x="455" y="738" class="sub" style="text-anchor:middle;font-size:12px">Enter · send</text>
+  </g>
+
+  <!-- shifter -->
+  <text x="620" y="665" class="hd">SHIFTER</text>
+  <g transform="translate(640 690)">
+    <path d="M20 0 V60 M120 0 V60 M220 0 V60 M20 30 H220" stroke="#59606b" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <path d="M220 30 H270 V60" stroke="#59606b" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="2 7"/>
+    <g class="key" style="font-size:14px">
+      <circle cx="20" cy="0" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="20" y="5" style="fill:#ffb86b">1</text>
+      <circle cx="20" cy="60" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="20" y="65" style="fill:#ffb86b">2</text>
+      <circle cx="120" cy="0" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="120" y="5" style="fill:#ffb86b">3</text>
+      <circle cx="120" cy="60" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="120" y="65" style="fill:#ffb86b">4</text>
+      <circle cx="220" cy="0" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="220" y="5" style="fill:#ffb86b">5</text>
+      <circle cx="220" cy="60" r="13" fill="#1b1f26" stroke="#ffb86b" stroke-width="2"/><text x="220" y="65" style="fill:#ffb86b">6</text>
+      <circle cx="270" cy="60" r="13" fill="#1b1f26" stroke="#ff6b81" stroke-width="2"/><text x="270" y="65" style="fill:#ff6b81">R</text>
+    </g>
+  </g>
+  <g class="sub" style="font-size:13px">
+    <text x="950" y="690">1 haiku</text><text x="1060" y="690">2 sonnet</text>
+    <text x="950" y="712">3 opus</text><text x="1060" y="712">4 fable</text>
+    <text x="950" y="734">5 opus[1m]</text><text x="1060" y="734">6 opusplan</text>
+    <text x="950" y="756">R rewind</text><text x="1060" y="756">(clutch in)</text>
+  </g>
+</svg>
