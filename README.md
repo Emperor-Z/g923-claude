@@ -7,6 +7,7 @@ And the wheel buzzes when Claude needs you.
 
 [![CI](https://github.com/Emperor-Z/g923-claude/actions/workflows/ci.yml/badge.svg)](https://github.com/Emperor-Z/g923-claude/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Emperor-Z/g923-claude?color=ff5a36)](https://github.com/Emperor-Z/g923-claude/releases)
+[![PyPI](https://img.shields.io/pypi/v/g923-claude?color=3775a9)](https://pypi.org/project/g923-claude/)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
 [![Platform](https://img.shields.io/badge/platform-Linux-informational)](#install)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -162,15 +163,17 @@ cd g923-claude
 
 `./uninstall.sh` stops the service and removes only the g923 hooks.
 
-**From a release (pip):** each [release](https://github.com/Emperor-Z/g923-claude/releases) ships a wheel:
+**From PyPI:**
 
 ```bash
-pipx install https://github.com/Emperor-Z/g923-claude/releases/download/v0.5.0/g923_claude-0.5.0-py3-none-any.whl
+pipx install g923-claude
 g923-hooks            # add the Claude Code hooks
 g923d                 # run the daemon
 ```
 
-Copy `config.toml` to `~/.config/g923-claude/config.toml` to customise it.
+Each [release](https://github.com/Emperor-Z/g923-claude/releases) also ships the wheel and sdist.
+
+**Customising:** put only the settings you want to change in `~/.config/g923-claude/config.toml`; it's layered over the defaults. Ready-made configs for other wheels live in [`configs/`](configs/).
 
 **Container (GHCR):** for the curious. Notifications and sounds don't work inside it, so prefer the install script.
 
@@ -269,11 +272,12 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 |---|---|
 | Logitech G923 PlayStation/PC (`046d:c266`) | ✅ Fully mapped |
 | Logitech Driving Force Shifter | ✅ Model switching |
-| Logitech G923 Xbox/PC (`046d:c26e`) | 🟡 Should work, button codes differ |
-| Logitech G29 / G920 | 🟡 Same layout family, needs a config |
-| Thrustmaster, Fanatec, Moza, anything evdev | 🙋 Help wanted |
+| Logitech G923 Xbox/PC (`046d:c26e`) | 🟡 Should work, button codes differ ([#12](https://github.com/Emperor-Z/g923-claude/issues/12)) |
+| Logitech G29 | 🟡 [`configs/logitech-g29.toml`](configs/logitech-g29.toml), untested ([#11](https://github.com/Emperor-Z/g923-claude/issues/11)) |
+| Logitech G920 | 🟡 Needs a config ([#12](https://github.com/Emperor-Z/g923-claude/issues/12)) |
+| Thrustmaster, Fanatec, Moza, anything evdev | 🙋 Help wanted ([#13](https://github.com/Emperor-Z/g923-claude/issues/13)) |
 
-Everything device-specific lives in [`config.toml`](config.toml). Supporting a new wheel usually means running `bin/g923d --dump`, pressing each button, and filling in `[buttons]` and `[pedals]`. **If you get your wheel working, please open a PR with your config.** See [CONTRIBUTING.md](CONTRIBUTING.md).
+Everything device-specific lives in [`config.toml`](config.toml), and per-wheel overrides live in [`configs/`](configs/). Supporting a new wheel usually means running `bin/g923d --dump`, pressing each button, and writing a small config with only the codes that differ. **If you get your wheel working, please open a PR with your config.** See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## FAQ
 
