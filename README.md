@@ -98,7 +98,16 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 | △ | Accept suggested word |
 | Gas / Brake | Still Enter / Esc |
 
-Letters are ordered by frequency (`e t a o i n s r h l …`). Word suggestions come from a built-in list plus your own past Claude Code prompts, read locally and never stored.
+Letters are ordered by frequency (`e t a o i n s r h l …`). The dial keeps its position between characters, so the first press after a commit re-shows the same letter: double letters are one press plus Enter.
+
+**What you see is what you get.** A previewed character or suggested word that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
+
+**Word suggestions.** After two committed letters, a notification shows the top three guesses. □ types the first one inline, and pressing □ again swaps it for the next; △ accepts it and adds a space (if nothing is showing, △ inserts the top guess directly). Guesses come from a built-in list (`g923/words.txt`) blended with words from your own past Claude Code prompts (`~/.claude/history.jsonl`), which are read locally at startup and never written anywhere.
+
+Tips:
+- `/` (top of the symbols set) opens Claude Code's command menu and `@` opens the file picker; drive those menus with the paddles and Gas.
+- Paddles, pedals, gears and the other buttons keep their Drive mode actions while you type.
+- For long prompts, hold L3 for voice dictation instead.
 
 ## Install
 
@@ -139,7 +148,7 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 - [x] Phase 0 — skeleton, config, README
 - [x] Phase 1 — daemon core, Drive mode, steering scroll, arm/disarm
 - [x] Phase 2 — clutch + shifter model switching, effort
-- [ ] Phase 3 — Type mode with word suggestions
+- [x] Phase 3 — Type mode with word suggestions
 - [ ] Phase 4 — Claude Code hooks, feedback, systemd service, installer
 - [ ] Phase 5 — force feedback via the new-lg4ff driver
 
