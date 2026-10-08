@@ -91,3 +91,14 @@ class SettingsMergeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+REPO = Path(__file__).resolve().parent.parent
+
+
+@unittest.skipUnless((REPO / ".venv" / "bin" / "python").exists(), "needs the repo .venv")
+class LauncherTest(unittest.TestCase):
+    def test_launcher_works_outside_the_repo(self):
+        launcher = REPO / "bin" / "g923d"
+        r = subprocess.run([str(launcher), "--help"], cwd="/", capture_output=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr.decode())
