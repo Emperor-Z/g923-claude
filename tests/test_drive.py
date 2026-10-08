@@ -3,8 +3,12 @@ import unittest
 from evdev import InputEvent
 from evdev import ecodes as e
 
+from pathlib import Path
+
 from g923 import config
 from g923.daemon import Daemon
+
+REPO_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
 
 
 class Recorder:
@@ -42,7 +46,7 @@ class SilentFeedback:
 
 
 def make(armed=True):
-    cfg = config.load()
+    cfg = config.load(REPO_CONFIG)
     d = Daemon(cfg, Recorder(), SilentFeedback())
     d.armed = armed
     return d

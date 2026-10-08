@@ -1,8 +1,12 @@
 import unittest
 from collections import Counter
 
+from pathlib import Path
+
 from g923 import config
 from g923.daemon import Daemon
+
+REPO_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
 from g923.typing import WordModel
 from tests.test_drive import Recorder, SilentFeedback, axis, tap
 
@@ -15,7 +19,7 @@ class FixedModel(WordModel):
 def make(words=("refactor", "readme", "repo")):
     from g923.typing import Typer
 
-    cfg = config.load()
+    cfg = config.load(REPO_CONFIG)
     out, fb = Recorder(), SilentFeedback()
     d = Daemon(cfg, out, fb, typer=Typer(cfg, out, fb, FixedModel(list(words))))
     d.armed = True
