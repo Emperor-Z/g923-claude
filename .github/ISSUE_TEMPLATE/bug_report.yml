@@ -1,0 +1,30 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: wheel
+    attributes:
+      label: Wheel and USB ID
+      description: Output of `lsusb | grep -i logitech` (or your vendor)
+      placeholder: "046d:c266 Logitech G923 Racing Wheel for PlayStation and PC"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Distro, desktop and kernel
+      placeholder: "Arch, GNOME 49 (Wayland), 7.2.6"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`journalctl --user -u g923d -n 50` and/or `bin/g923d --dump` output"
+      render: text

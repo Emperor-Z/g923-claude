@@ -1,0 +1,11 @@
+name: Feature idea
+description: A new control, feedback effect or integration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should the wheel do, and why would it feel good?
+    validations:
+      required: true
