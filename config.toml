@@ -128,3 +128,9 @@ socket = "$XDG_RUNTIME_DIR/g923.sock"
 notify = true
 sound = true
 attention_repeat_s = 3
+
+[ffb]
+# Needs a driver that exposes force feedback (new-lg4ff for the PS G923).
+enabled = true
+strength = 0.6     # overall gain, 0-1
+autocenter = 0.15  # light spring so the wheel returns to centre (stops scrolling)
