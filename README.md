@@ -96,6 +96,36 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 
 Letters are ordered by frequency (`e t a o i n s r h l …`). Word suggestions come from a built-in list plus your own past Claude Code prompts, read locally and never stored.
 
+## Install
+
+Requires Linux, Python 3.11+, and write access to `/dev/uinput` (granted to the logged-in user on most systemd distros).
+
+```bash
+git clone https://github.com/Emperor-Z/g923-claude.git
+cd g923-claude
+uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
+# or: python -m venv .venv && .venv/bin/pip install -r requirements.txt
+```
+
+## Usage
+
+```bash
+bin/g923d              # run the daemon, then press PS to arm
+bin/g923d --dry-run    # print what each input would send, without sending it
+bin/g923d --dump       # print raw wheel events (find button codes)
+bin/g923d --config my.toml
+```
+
+Focus the terminal running Claude Code, press **PS**, and drive.
+
+## Tests
+
+```bash
+.venv/bin/python -m unittest discover -s tests -t .
+```
+
+The tests replay synthetic wheel events through the daemon, so they don't need the wheel connected.
+
 ## Safety
 
 Keys go to whichever window is focused. The daemon starts **disarmed** — press **PS** to arm it (you get a notification). Disarm before gaming or using other apps.
@@ -103,7 +133,7 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 ## Roadmap
 
 - [x] Phase 0 — skeleton, config, README
-- [ ] Phase 1 — daemon core, Drive mode, steering scroll, arm/disarm
+- [x] Phase 1 — daemon core, Drive mode, steering scroll, arm/disarm
 - [ ] Phase 2 — clutch + shifter model switching, effort
 - [ ] Phase 3 — Type mode with word suggestions
 - [ ] Phase 4 — Claude Code hooks, feedback, systemd service, installer
