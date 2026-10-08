@@ -1,0 +1,12 @@
+[Unit]
+Description=g923-claude: drive Claude Code with a Logitech G923
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=@REPO@/bin/g923d
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target
