@@ -109,6 +109,20 @@ sets = [
 suggest_after = 2        # letters typed before word suggestions kick in
 history_file = "~/.claude/history.jsonl"
 
+[type_keys]
+# Type mode overrides; other buttons keep their Drive mode action.
+dpad_left = "prev"
+dpad_right = "next"
+dial_ccw = "prev"
+dial_cw = "next"
+dpad_up = "set_prev"
+dpad_down = "set_next"
+dial_enter = "commit"
+cross = "space"
+circle = "backspace"
+square = "suggest"
+triangle = "accept"
+
 [feedback]
 socket = "$XDG_RUNTIME_DIR/g923.sock"
 notify = true

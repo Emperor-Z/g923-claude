@@ -9,6 +9,7 @@ from evdev import ecodes as e
 from . import config
 from .feedback import Feedback
 from .keys import DryRun, Injector
+from .typing import Typer
 
 HATS = {
     ("ABS_HAT0Y", -1): "dpad_up", ("ABS_HAT0Y", 1): "dpad_down",
@@ -50,10 +51,11 @@ class Pedal:
 
 
 class Daemon:
-    def __init__(self, cfg, out, fb):
+    def __init__(self, cfg, out, fb, typer=None):
         self.cfg = cfg
         self.out = out
         self.fb = fb
+        self.typer = typer or Typer(cfg, out, fb)
         self.armed = cfg["modes"].get("start_armed", False)
         self.mode = "drive"
         p = cfg["pedals"]
@@ -96,11 +98,24 @@ class Daemon:
             return
         if not self.armed:
             return
+        modes = self.cfg["modes"]
+        if name in (modes["drive"], modes["type"]):
+            if down:
+                self.set_mode("drive" if name == modes["drive"] else "type")
+            return
+        if self.mode == "type" and name in self.cfg["type_keys"]:
+            if down:
+                self.type_button(name)
+            return
+        # Anything else falls through to Drive mode, so pedals, paddles and
+        # gears keep working while typing.
+        self.typer.finalize()
         self.drive_button(name, down)
 
     def pedal(self, name, down):
         if not self.armed:
             return
+        self.typer.finalize()
         feet = self.cfg["feet"]
         if name == "clutch":
             if down:
@@ -134,6 +149,26 @@ class Daemon:
             (self.held.add if down else self.held.discard)(key)
         elif down:
             self.out.press(action)
+
+    # --- type mode ------------------------------------------------------
+
+    def type_button(self, name):
+        t = self.typer
+        actions = {
+            "prev": lambda: t.step(-1), "next": lambda: t.step(1),
+            "set_prev": lambda: t.change_set(-1), "set_next": lambda: t.change_set(1),
+            "commit": t.commit, "space": t.space, "backspace": t.backspace,
+            "suggest": t.next_suggestion, "accept": t.accept,
+        }
+        actions[self.cfg["type_keys"][name]]()
+
+    def set_mode(self, mode):
+        if mode == self.mode:
+            return
+        self.typer.finalize()
+        self.mode = mode
+        self.fb.notify(f"{mode.title()} mode",
+                       "D-pad picks, dial Enter commits" if mode == "type" else "")
 
     # --- shifter and effort ---------------------------------------------
 
