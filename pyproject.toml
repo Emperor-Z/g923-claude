@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "g923-claude"
+version = "0.4.0"
+description = "Drive Claude Code with a Logitech G923 wheel, pedals and shifter"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["evdev>=1.7"]
+classifiers = [
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development",
+]
+
+[project.urls]
+Repository = "https://github.com/Emperor-Z/g923-claude"
+
+[project.scripts]
+g923d = "g923.daemon:main"
+g923-ping = "g923.ping:main"
+g923-hooks = "g923.hooks:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["g923"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"config.toml" = "g923/default_config.toml"
