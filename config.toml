@@ -101,8 +101,8 @@ start = "high"
 
 [type]
 sets = [
-  "etaoinshrdlcumwfgypbvkjxqz",
-  "ETAOINSHRDLCUMWFGYPBVKJXQZ",
+  "abcdefghijklmnopqrstuvwxyz",
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
   "1234567890",
   "/@.-_?!:,'\"()[]{}<>=+*&|#$%~`;\\^",
 ]

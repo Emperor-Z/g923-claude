@@ -51,26 +51,26 @@ CROSS, CIRCLE, SQUARE, TRIANGLE = 288, 290, 289, 291
 
 
 class TypeModeTest(unittest.TestCase):
-    def test_first_press_previews_e(self):
+    def test_first_press_previews_a(self):
         d = make()
         dpad(d, "right")
-        self.assertEqual(screen(d.out.log), "e")
+        self.assertEqual(screen(d.out.log), "a")
 
     def test_scrolling_replaces_preview(self):
         d = make()
         for _ in range(3):
-            tap(d, DIAL_CW)  # e, t, a
-        self.assertEqual(screen(d.out.log), "a")
+            tap(d, DIAL_CW)  # a, b, c
+        self.assertEqual(screen(d.out.log), "c")
         dpad(d, "left")
-        self.assertEqual(screen(d.out.log), "t")
+        self.assertEqual(screen(d.out.log), "b")
 
     def test_commit_and_double_letter(self):
         d = make()
-        tap(d, DIAL_CW)        # e
-        tap(d, DIAL_ENTER)     # commit e
-        tap(d, DIAL_CW)        # re-shows e (no move)
+        tap(d, DIAL_CW)        # a
+        tap(d, DIAL_ENTER)     # commit a
+        tap(d, DIAL_CW)        # re-shows a (no move)
         tap(d, DIAL_ENTER)
-        self.assertEqual(screen(d.out.log), "ee")
+        self.assertEqual(screen(d.out.log), "aa")
 
     def test_wraps_backwards_to_z(self):
         d = make()
@@ -81,7 +81,7 @@ class TypeModeTest(unittest.TestCase):
     def test_set_switch(self):
         d = make()
         dpad(d, "down")        # ABC
-        self.assertEqual(screen(d.out.log), "E")
+        self.assertEqual(screen(d.out.log), "A")
         dpad(d, "down")        # 123
         dpad(d, "down")        # symbols
         self.assertEqual(screen(d.out.log), "/")
@@ -91,24 +91,25 @@ class TypeModeTest(unittest.TestCase):
         tap(d, DIAL_CW)
         tap(d, CROSS)
         tap(d, DIAL_CW)
-        self.assertEqual(screen(d.out.log), "e e")
+        self.assertEqual(screen(d.out.log), "a a")
 
     def test_backspace_cancels_preview_then_deletes(self):
         d = make()
         tap(d, DIAL_CW); tap(d, DIAL_ENTER)
         tap(d, DIAL_CW)
         tap(d, CIRCLE)
-        self.assertEqual(screen(d.out.log), "e")
+        self.assertEqual(screen(d.out.log), "a")
         tap(d, CIRCLE)
         self.assertEqual(screen(d.out.log), "")
 
     def type_re(self, d):
-        # r is index 8 in "etaoinshrdl...": one press shows e, eight more reach r.
-        for _ in range(9):
+        letters = d.typer.sets[0]
+        r, e = letters.index("r"), letters.index("e")
+        # One press shows the current letter, then each press moves one.
+        for _ in range(r + 1):
             tap(d, DIAL_CW)
         tap(d, DIAL_ENTER)
-        # First press re-shows r, eight more step back to e.
-        for _ in range(9):
+        for _ in range(r - e + 1):
             tap(d, DIAL_CCW)
         tap(d, DIAL_ENTER)
 
@@ -142,7 +143,7 @@ class TypeModeTest(unittest.TestCase):
         for v in (255, 0, 255):
             axis(d, "ABS_Z", v)
         self.assertEqual(d.out.log[-1], ("key", "enter"))
-        self.assertEqual(screen(d.out.log), "e")
+        self.assertEqual(screen(d.out.log), "a")
 
     def test_paddles_fall_through_to_drive(self):
         d = make()
