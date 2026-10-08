@@ -1,0 +1,25 @@
+name: Support my wheel
+description: Help get another wheel, pedal set or shifter working
+labels: [hardware, help wanted]
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Device and USB ID
+      placeholder: "Thrustmaster T300RS (044f:b66e)"
+    validations:
+      required: true
+  - type: textarea
+    id: dump
+    attributes:
+      label: "`bin/g923d --dump` output"
+      description: Press every button, each pedal, turn the wheel lock to lock, and run through the shifter. Set `[device] name_match` first so the dump finds your device.
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Contribution
+      options:
+        - label: I'm happy to open a PR with a config for this device

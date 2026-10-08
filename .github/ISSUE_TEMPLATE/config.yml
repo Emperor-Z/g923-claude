@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and show-and-tell
+    url: https://github.com/Emperor-Z/g923-claude/discussions
+    about: Ask questions or share your setup in Discussions
