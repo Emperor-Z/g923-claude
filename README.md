@@ -165,7 +165,7 @@ cd g923-claude
 **From a release (pip):** each [release](https://github.com/Emperor-Z/g923-claude/releases) ships a wheel:
 
 ```bash
-pipx install https://github.com/Emperor-Z/g923-claude/releases/download/v0.4.0/g923_claude-0.4.0-py3-none-any.whl
+pipx install https://github.com/Emperor-Z/g923-claude/releases/download/v0.5.0/g923_claude-0.5.0-py3-none-any.whl
 g923-hooks            # add the Claude Code hooks
 g923d                 # run the daemon
 ```

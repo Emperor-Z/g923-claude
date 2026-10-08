@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-10-08
 
 ### Added
 - Force feedback on the wheel (new-lg4ff for the PS G923): kicks when Claude finishes, wiggle while a permission prompt waits, buzz on a clutchless shift, centring spring; `g923d --test-ffb`
