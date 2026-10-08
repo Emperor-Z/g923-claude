@@ -1,8 +1,8 @@
 """Desktop and wheel feedback.
 
 Notifications go through notify-send and sounds through canberra-gtk-play.
-Force feedback is added in phase 5 via `attach_wheel`; until then each event
-falls back to sound.
+When the wheel exposes force feedback, events are felt on the wheel instead of
+heard; otherwise they fall back to sound.
 """
 
 import shutil
@@ -22,6 +22,24 @@ class Feedback:
         self.cfg = cfg["feedback"]
         self.has_notify = shutil.which("notify-send") is not None
         self.has_sound = shutil.which("canberra-gtk-play") is not None
+        self.wheel = None
+
+    def attach_wheel(self, dev, ffb_cfg):
+        from .ffb import Wheel
+
+        self.detach_wheel()
+        if ffb_cfg.get("enabled", True):
+            self.wheel = Wheel(dev, ffb_cfg)
+
+    def detach_wheel(self):
+        if self.wheel:
+            self.wheel.close()
+        self.wheel = None
+
+    def _feel(self, event):
+        """Play a wheel effect, or the matching sound if there's no FFB."""
+        if not (self.wheel and self.wheel.play(event)):
+            self.sound(event)
 
     def notify(self, title, body=""):
         print(f"[notify] {title} {body}".rstrip(), flush=True)
@@ -36,17 +54,17 @@ class Feedback:
     # --- events -----------------------------------------------------------
 
     def done(self):
-        self.sound("done")
+        self._feel("done")
 
     def attention(self):
-        self.sound("attention")
+        self._feel("attention")
 
     def grind(self):
-        self.sound("grind")
+        self._feel("grind")
         self.notify("Grind!", "Hold the clutch to change gear")
 
     def armed(self, armed):
-        self.sound("arm" if armed else "disarm")
+        self._feel("arm" if armed else "disarm")
 
     def _spawn(self, argv):
         try:
