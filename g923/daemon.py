@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 import sys
 import time
 
@@ -70,6 +71,7 @@ class Daemon:
         self.held = set()
         eff = cfg["effort"]
         self.effort = eff["levels"].index(eff["start"])
+        self.claude_state = "idle"  # idle | busy | attention, from hooks
 
     # --- input dispatch -------------------------------------------------
 
@@ -92,6 +94,8 @@ class Daemon:
                     self.button(HATS[(axis, direction)], ev.value == direction)
 
     def button(self, name, down):
+        if down and self.armed and self.claude_state == "attention":
+            self.claude_state = "busy"
         if name == self.cfg["modes"]["arm_toggle"]:
             if down:
                 self.set_armed(not self.armed)
@@ -115,6 +119,8 @@ class Daemon:
     def pedal(self, name, down):
         if not self.armed:
             return
+        if down and self.claude_state == "attention":
+            self.claude_state = "busy"
         self.typer.finalize()
         feet = self.cfg["feet"]
         if name == "clutch":
@@ -215,6 +221,7 @@ class Daemon:
         self.armed = armed
         if not armed:
             self.release_all()
+        self.fb.armed(armed)
         self.fb.notify("G923 armed" if armed else "G923 disarmed",
                        f"{self.mode.title()} mode" if armed else "Inputs ignored")
 
@@ -222,6 +229,54 @@ class Daemon:
         for key in list(self.held):
             self.out.hold(key, False)
         self.held.clear()
+
+    # --- Claude Code hooks ------------------------------------------------
+
+    def hook_event(self, msg):
+        """Handle a message from bin/g923-ping (sent by Claude Code hooks)."""
+        if msg == "busy":
+            self.claude_state = "busy"
+        elif msg == "done":
+            self.claude_state = "idle"
+            self.fb.done()
+        elif msg == "attention":
+            if self.claude_state != "attention":
+                self.claude_state = "attention"
+                self.fb.notify("Claude needs you", "Permission requested")
+                self.fb.attention()
+        elif msg == "clear":
+            if self.claude_state == "attention":
+                self.claude_state = "busy"
+        else:
+            print(f"unknown hook message: {msg!r}", flush=True)
+
+    async def serve_hooks(self):
+        path = config.expand(self.cfg["feedback"]["socket"])
+        if os.path.exists(path):
+            os.unlink(path)
+
+        async def client(reader, writer):
+            try:
+                data = await asyncio.wait_for(reader.read(256), timeout=1)
+                for msg in data.decode(errors="replace").split():
+                    self.hook_event(msg)
+            except (asyncio.TimeoutError, ConnectionError):
+                pass
+            finally:
+                writer.close()
+
+        server = await asyncio.start_unix_server(client, path=path)
+        os.chmod(path, 0o600)
+        print(f"listening for hooks on {path}", flush=True)
+        return server
+
+    async def attention_loop(self):
+        """Keep nudging while a permission prompt is waiting."""
+        every = self.cfg["feedback"]["attention_repeat_s"]
+        while True:
+            await asyncio.sleep(every)
+            if self.claude_state == "attention":
+                self.fb.attention()
 
     # --- steering scroll --------------------------------------------------
 
@@ -258,7 +313,9 @@ class Daemon:
 
     async def run(self):
         name = self.cfg["device"]["name_match"]
-        scroller = asyncio.create_task(self.scroll_loop())
+        server = await self.serve_hooks()
+        tasks = [asyncio.create_task(self.scroll_loop()),
+                 asyncio.create_task(self.attention_loop())]
         try:
             while True:
                 dev = find_device(name)
@@ -274,7 +331,9 @@ class Daemon:
                     self.release_all()
                     await asyncio.sleep(1)
         finally:
-            scroller.cancel()
+            for t in tasks:
+                t.cancel()
+            server.close()
 
 
 def dump(cfg):

@@ -111,16 +111,37 @@ Tips:
 
 ## Install
 
-Requires Linux, Python 3.11+, and write access to `/dev/uinput` (granted to the logged-in user on most systemd distros).
+Requires Linux, Python 3.11+, systemd, and write access to `/dev/uinput` (granted to the logged-in user on most systemd distros).
 
 ```bash
 git clone https://github.com/Emperor-Z/g923-claude.git
 cd g923-claude
-uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
-# or: python -m venv .venv && .venv/bin/pip install -r requirements.txt
+./install.sh
 ```
 
+`install.sh`:
+1. creates `.venv` and installs `evdev` (with `uv` if available)
+2. adds the Claude Code hooks to `~/.claude/settings.json`, leaving your other hooks alone and saving a backup to `settings.json.g923.bak`
+3. installs and starts the `g923d` systemd user service
+
+`./uninstall.sh` stops the service and removes only the g923 hooks.
+
+## Claude Code integration
+
+Hooks tell the daemon what Claude is doing via `bin/g923-ping`, a tiny client that talks to the daemon's Unix socket (`$XDG_RUNTIME_DIR/g923.sock`) and silently does nothing if the daemon isn't running.
+
+| Hook | Message | Wheel reaction |
+|---|---|---|
+| `UserPromptSubmit` | `busy` | — |
+| `Stop` | `done` | "complete" chime (force-feedback jolt in phase 5) |
+| `PermissionRequest` | `attention` | Notification + warning sound, repeated every 3 s until you answer |
+| `PostToolUse` | `clear` | Stops the repeat |
+
+Any wheel or pedal input also counts as answering, so the nagging stops as soon as you hit ✕, ○, Gas or Brake.
+
 ## Usage
+
+With the service installed it runs in the background; follow it with `journalctl --user -u g923d -f`. To run it by hand instead (stop the service first):
 
 ```bash
 bin/g923d              # run the daemon, then press PS to arm
@@ -143,13 +164,22 @@ The tests replay synthetic wheel events through the daemon, so they don't need t
 
 Keys go to whichever window is focused. The daemon starts **disarmed** — press **PS** to arm it (you get a notification). Disarm before gaming or using other apps.
 
+## Troubleshooting
+
+- **Nothing happens:** press PS to arm. Check `journalctl --user -u g923d -f` for `connected:`.
+- **`Permission denied` on `/dev/uinput`:** add a udev rule: `KERNEL=="uinput", TAG+="uaccess"` in `/etc/udev/rules.d/60-uinput.rules`, then `sudo udevadm control --reload && sudo udevadm trigger`.
+- **Wheel not found:** run `bin/g923d --dump`; if your wheel's name doesn't contain "G923", set `[device] name_match`.
+- **Wrong buttons:** run `bin/g923d --dump`, press the button, and fix its code in `[buttons]`.
+- **No notifications or sounds:** install `libnotify` (notify-send) and `libcanberra` (canberra-gtk-play).
+- **Keys go to the wrong window:** they always go to the focused window. Disarm (PS) before switching apps.
+
 ## Roadmap
 
 - [x] Phase 0 — skeleton, config, README
 - [x] Phase 1 — daemon core, Drive mode, steering scroll, arm/disarm
 - [x] Phase 2 — clutch + shifter model switching, effort
 - [x] Phase 3 — Type mode with word suggestions
-- [ ] Phase 4 — Claude Code hooks, feedback, systemd service, installer
+- [x] Phase 4 — Claude Code hooks, feedback, systemd service, installer
 - [ ] Phase 5 — force feedback via the new-lg4ff driver
 
 ## Hardware notes
