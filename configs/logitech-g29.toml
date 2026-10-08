@@ -1,0 +1,12 @@
+# Logitech G29 Driving Force (PS3/PS4/PC, 046d:c24f)
+#
+# UNTESTED on real hardware - see issue #11. The G29 shares the PlayStation
+# G923's button layout and HID report, so every default should carry over;
+# only the device name differs. Force feedback works with the in-kernel
+# hid-logitech driver (switch the wheel to PS3 mode).
+#
+# Use: bin/g923d --config configs/logitech-g29.toml
+# Layered over config.toml, so only list what differs.
+
+[device]
+name_match = "G29"
