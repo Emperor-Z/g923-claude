@@ -187,11 +187,36 @@ Hooks tell the daemon what Claude is doing via `bin/g923-ping`, a tiny client th
 | Hook | Message | Wheel reaction |
 |---|---|---|
 | `UserPromptSubmit` | `busy` | — |
-| `Stop` | `done` | "complete" chime (force-feedback jolt in phase 5) |
-| `PermissionRequest` | `attention` | Notification + warning sound, repeated every 3 s until you answer |
+| `Stop` | `done` | Two quick kicks on the wheel (or a chime without force feedback) |
+| `PermissionRequest` | `attention` | Notification + side-to-side wiggle (or warning sound), repeated every 3 s until you answer |
 | `PostToolUse` | `clear` | Stops the repeat |
 
 Any wheel or pedal input also counts as answering, so the nagging stops as soon as you hit ✕, ○, Gas or Brake.
+
+## Force feedback
+
+With a driver that exposes force feedback, the wheel itself reacts:
+
+| Event | Feel |
+|---|---|
+| Claude finished | Two quick kicks, left then right |
+| Permission waiting | Slow side-to-side wiggle, every 3 s until you answer |
+| Shifted without the clutch | Harsh buzz |
+| Armed / disarmed | One tap / two soft taps |
+| Always | Light centring spring, so letting go of the wheel stops the scroll |
+
+Without force feedback, each event falls back to a sound. Tune `[ffb] strength` and `autocenter` in `config.toml`, and try the effects with `bin/g923d --test-ffb` (or `--test-ffb done`).
+
+**PlayStation G923 (`046d:c266`) on Linux:** the stock kernel binds it to `hid-generic`, which has no force feedback. Install [new-lg4ff](https://github.com/berarma/new-lg4ff):
+
+```bash
+sudo git clone https://github.com/berarma/new-lg4ff.git /usr/src/new-lg4ff
+sudo dkms install /usr/src/new-lg4ff
+# unplug and replug the wheel, then:
+bin/g923d --test-ffb
+```
+
+DKMS rebuilds it on kernel upgrades. The Xbox G923 (`046d:c26e`) already has force feedback in mainline via HID++.
 
 ## Usage
 
@@ -201,6 +226,7 @@ With the service installed it runs in the background; follow it with `journalctl
 bin/g923d              # run the daemon, then press PS to arm
 bin/g923d --dry-run    # print what each input would send, without sending it
 bin/g923d --dump       # print raw wheel events (find button codes)
+bin/g923d --test-ffb   # play every force-feedback effect
 bin/g923d --config my.toml
 ```
 
@@ -234,7 +260,8 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 - [x] Phase 2 — clutch + shifter model switching, effort
 - [x] Phase 3 — Type mode with word suggestions
 - [x] Phase 4 — Claude Code hooks, feedback, systemd service, installer
-- [ ] Phase 5 — force feedback via the new-lg4ff driver
+- [x] Phase 5 — force feedback effects (new-lg4ff for the PS G923)
+- [ ] Rev LEDs showing Claude's context usage
 
 ## Supported hardware
 
