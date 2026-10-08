@@ -76,7 +76,11 @@ Hold the **clutch** and move the stick, like a real car. Shifting without the cl
 | R | Rewind (`Esc Esc`) |
 | N | no change |
 
-Your draft prompt is stashed (`Ctrl+S`) while the command is sent and restored after, so shifting mid-sentence doesn't lose it.
+Your draft prompt is stashed (`Ctrl+S`) while the command is sent and restored after, so shifting mid-sentence doesn't lose it. `/model` applies immediately, even while Claude is working: the switch takes effect from Claude's next request. If Claude Code shows a prompt-cache warning, confirm it with the gas pedal.
+
+**+ / −** step reasoning effort through `low → medium → high → xhigh → max` with `/effort`. The daemon assumes you start at `high` (configurable as `[effort] start`).
+
+Gear presets live in `[shifter]` in `config.toml`. Each gear is a list of slash commands, so a gear can set several things at once, for example `gear_6 = ["/model fable", "/effort max"]`.
 
 ### Type mode
 
@@ -134,7 +138,7 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 
 - [x] Phase 0 — skeleton, config, README
 - [x] Phase 1 — daemon core, Drive mode, steering scroll, arm/disarm
-- [ ] Phase 2 — clutch + shifter model switching, effort
+- [x] Phase 2 — clutch + shifter model switching, effort
 - [ ] Phase 3 — Type mode with word suggestions
 - [ ] Phase 4 — Claude Code hooks, feedback, systemd service, installer
 - [ ] Phase 5 — force feedback via the new-lg4ff driver

@@ -15,3 +15,6 @@ class Feedback:
                  "-h", "string:x-canonical-private-synchronous:g923", title, body],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
+
+    def grind(self):
+        self.notify("Grind!", "Hold the clutch to change gear")

@@ -23,6 +23,9 @@ class Recorder:
     def scroll(self, notches):
         self.log.append(("scroll", notches))
 
+    def pause(self, seconds):
+        pass
+
     def close(self):
         pass
 
