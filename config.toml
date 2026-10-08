@@ -1,0 +1,116 @@
+# g923-claude configuration
+#
+# Button codes are Linux evdev codes as reported by the G923 (PlayStation/PC
+# version, 046d:c266) under hid-generic. Run `g923d --dump` to see live codes.
+# Key actions are xdotool-style combos: "enter", "esc", "shift+tab", "ctrl+o".
+
+[device]
+name_match = "G923"
+
+[pedals]
+# Axes rest at 255 and fall towards 0 when pressed.
+gas = "ABS_Z"
+brake = "ABS_RZ"
+clutch = "ABS_Y"
+press_at = 0.60    # fraction of travel that counts as a press
+release_at = 0.30  # must come back below this before it can fire again
+
+[steering]
+axis = "ABS_X"
+center = 32768
+units_per_degree = 72.8  # 65536 units over 900 degrees
+deadzone_deg = 10
+full_speed_deg = 90      # angle at which scrolling hits max_rate
+max_rate = 30            # wheel notches per second
+invert = false           # false: turn left = scroll up
+
+[buttons]
+# code = name (names are used by the [drive] and [type] maps below)
+288 = "cross"
+289 = "square"
+290 = "circle"
+291 = "triangle"
+292 = "paddle_right"
+293 = "paddle_left"
+294 = "r2"
+295 = "l2"
+296 = "share"
+297 = "options"
+298 = "r3"
+299 = "l3"
+300 = "gear_1"
+301 = "gear_2"
+302 = "gear_3"
+303 = "gear_4"
+704 = "gear_5"
+705 = "gear_6"
+706 = "gear_r"
+707 = "plus"
+708 = "minus"
+709 = "dial_cw"
+710 = "dial_ccw"
+711 = "dial_enter"
+712 = "ps"
+
+[modes]
+arm_toggle = "ps"        # nothing is sent until armed
+drive = "share"          # left 3-line button above PS
+type = "options"         # right 3-line button above PS
+start_armed = false
+
+[drive]
+# button/hat name -> key action
+paddle_left = "up"
+paddle_right = "down"
+dpad_up = "up"
+dpad_down = "down"
+dpad_left = "left"
+dpad_right = "right"
+dial_cw = "down"
+dial_ccw = "up"
+dial_enter = "enter"
+cross = "enter"          # Yes on permission prompts (focused by default)
+circle = "esc"           # No on permission prompts
+square = "shift+tab"     # "allow for session" on prompts, else cycle mode
+triangle = "ctrl+t"      # task checklist
+l2 = "ctrl+o"            # transcript viewer
+r2 = "ctrl+b"            # background running task
+r3 = "tab"               # accept autocomplete
+l3 = "hold:space"        # voice dictation (hold to record)
+
+[feet]
+gas = "enter"
+brake = "esc"
+clutch_tap = "shift+tab"  # clutch pressed and released with no gear change
+clutch_tap_max_ms = 600
+
+[shifter]
+require_clutch = true
+# gear -> list of slash commands sent in order
+gear_1 = ["/model haiku"]
+gear_2 = ["/model sonnet"]
+gear_3 = ["/model opus"]
+gear_4 = ["/model fable"]
+gear_5 = ["/model opus[1m]"]
+gear_6 = ["/model opusplan"]
+gear_r = ["@rewind"]      # @rewind = Esc Esc (rewind menu on empty input)
+
+[effort]
+levels = ["low", "medium", "high", "xhigh", "max"]
+start = "high"
+
+[type]
+sets = [
+  "etaoinshrdlcumwfgypbvkjxqz",
+  "ETAOINSHRDLCUMWFGYPBVKJXQZ",
+  "1234567890",
+  "/@.-_?!:,'\"()[]{}<>=+*&|#$%~`;\\^",
+]
+suggest_after = 2        # letters typed before word suggestions kick in
+history_file = "~/.claude/history.jsonl"
+
+[feedback]
+socket = "$XDG_RUNTIME_DIR/g923.sock"
+notify = true
+sound = true
+attention_repeat_s = 3
