@@ -118,7 +118,7 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 | △ | Accept suggested word |
 | Gas / Brake | Still Enter / Esc |
 
-Letters are ordered by frequency (`e t a o i n s r h l …`). The dial keeps its position between characters, so the first press after a commit re-shows the same letter: double letters are one press plus Enter.
+Letters run **a to z** and wrap around, so spin anticlockwise to reach the end of the alphabet fast (`z` is one click back from `a`). The dial keeps its position between characters, so the first press after a commit re-shows the same letter: double letters are one press plus Enter.
 
 **What you see is what you get.** A previewed character or suggested word that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
 

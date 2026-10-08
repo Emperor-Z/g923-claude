@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Force feedback on the wheel (new-lg4ff for the PS G923): kicks when Claude finishes, wiggle while a permission prompt waits, buzz on a clutchless shift, centring spring; `g923d --test-ffb`
+
+### Changed
+- Type mode letters now run a to z instead of frequency order, which is easier to remember
+
+### Fixed
+- `bin/g923d` failed to start under systemd (`No module named 'g923'`)
+
 ## [0.4.0] - 2026-10-08
 
 First public release.
