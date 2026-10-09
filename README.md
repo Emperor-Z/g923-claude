@@ -181,6 +181,18 @@ Hooks tell the daemon what Claude is doing via `bin/g923-ping`, a tiny client th
 
 Any wheel or pedal input also counts as answering, so the nagging stops as soon as you hit ✕, ○, Gas or Brake.
 
+### Works in VS Code too
+
+The daemon acts like a keyboard and mouse, so it drives whatever is focused. That includes Claude Code in any terminal, VS Code's integrated terminal, and the **Claude Code VS Code extension** chat panel.
+
+| Where | Status |
+|---|---|
+| Any terminal running `claude` | ✅ Everything |
+| VS Code integrated terminal | ✅ Everything (if VS Code grabs a shortcut like Ctrl+B, set `"terminal.integrated.sendKeybindingsToShell": true`) |
+| VS Code extension chat panel | 🟡 Pedals, arrows, buttons, Type mode and force feedback work; gear and +/− presets type `x/model sonnet` instead of running ([#22](https://github.com/Emperor-Z/g923-claude/issues/22)) |
+
+Steering scrolls whatever is under the mouse pointer, so keep it over Claude.
+
 ## Force feedback
 
 With a driver that exposes force feedback, the wheel itself reacts:
