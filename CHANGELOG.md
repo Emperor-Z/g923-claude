@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Type mode: holding ○ repeats backspace like a keyboard key, then switches to deleting whole words (`Ctrl+W`); timings configurable in `[type]`
+
 ## [0.5.1] - 2026-10-08
 
 ### Added
