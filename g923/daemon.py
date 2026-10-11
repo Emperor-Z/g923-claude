@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 from collections import deque
@@ -84,6 +86,10 @@ class Daemon:
         self.gear = None                   # the gear the shifter is in, if any
         self.connected = False
         self.watchers = set()
+        self.hud_hidden = False   # hidden by holding PS (the HUD reads this)
+        self.ps_down_at = None    # when PS went down, to tell a press from a hold
+        self.ps_hold_task = None
+        self.ps_held = False      # this hold already toggled the HUD
         # What Claude is up to, from the hooks' details (shown on the HUD).
         self.session = None    # project folder name
         self.task = None       # the prompt being worked on
@@ -122,8 +128,7 @@ class Daemon:
         if down and self.armed and self.claude_state == "attention":
             self.claude_state = "busy"
         if name == self.cfg["modes"]["arm_toggle"]:
-            if down:
-                self.set_armed(not self.armed)
+            self.arm_button(down)
             return
         if not self.armed:
             return
@@ -302,6 +307,62 @@ class Daemon:
         self.fb.notify("G923 armed" if armed else "G923 disarmed",
                        f"{self.mode.title()} mode" if armed else "Inputs ignored")
 
+    def arm_button(self, down):
+        """PS: a press arms or disarms; holding it shows or hides the HUD.
+
+        The press acts on release, so a hold isn't mistaken for one."""
+        hold = self.cfg.get("hud", {}).get("toggle_hold_s", 1.5)
+        if down:
+            self.ps_down_at, self.ps_held = time.monotonic(), False
+            try:
+                self.ps_hold_task = asyncio.get_running_loop().create_task(self.ps_hold(hold))
+            except RuntimeError:
+                self.ps_hold_task = None  # no event loop when a test drives the daemon directly
+            return
+        if self.ps_hold_task:
+            self.ps_hold_task.cancel()
+            self.ps_hold_task = None
+        if self.ps_down_at is None:
+            return
+        held = time.monotonic() - self.ps_down_at
+        self.ps_down_at = None
+        if self.ps_held:
+            return  # the HUD already toggled while it was held
+        if held >= hold:
+            self.toggle_hud()
+        else:
+            self.set_armed(not self.armed)
+
+    async def ps_hold(self, hold):
+        await asyncio.sleep(hold)
+        self.ps_held = True
+        self.toggle_hud()   # right away, so you know you can let go
+
+    def toggle_hud(self):
+        if not self.watchers:   # closed with its ×, or never started: open it
+            self.hud_hidden = False
+            self.fb.notify("HUD", "opening")
+            self.launch_hud()
+        else:
+            self.hud_hidden = not self.hud_hidden
+            self.fb.notify("HUD", "hidden (hold PS to bring it back)" if self.hud_hidden else "shown")
+
+    def launch_hud(self):
+        """Start the HUD: its user service if it's installed, else the g923-hud command."""
+        try:
+            started = subprocess.run(["systemctl", "--user", "--no-block", "start", "g923-hud.service"],
+                                     capture_output=True, timeout=5).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            started = False
+        if started:
+            return
+        exe = shutil.which("g923-hud")
+        if exe:
+            subprocess.Popen([exe], start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            self.fb.notify("HUD", "not installed: pipx install 'g923-claude[hud]'")
+
     def release_all(self):
         self.stop_backspace()
         for key in list(self.held):
@@ -401,6 +462,7 @@ class Daemon:
         return {
             "connected": self.connected,
             "armed": self.armed,
+            "hud_hidden": self.hud_hidden,
             "mode": self.mode,
             "claude": self.claude_state,
             "busy_since": self.busy_since,

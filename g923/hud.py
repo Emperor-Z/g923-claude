@@ -12,7 +12,8 @@ shows the word and the letter picker instead.
 
 It never takes focus and clicks go straight through it, so the wheel's key
 presses still reach Claude. Drag it anywhere (it remembers), double-click to
-snap it back to its corner, and hover for a × that closes it. It watches g923d
+snap it back to its corner, and hover for a × that closes it. Holding PS on the
+wheel hides it, and shows (or reopens) it again. It watches g923d
 over the same socket the Claude Code hooks use. Needs the optional Qt dependency: pipx install 'g923-claude[hud]'.
 """
 
@@ -277,6 +278,7 @@ def build(args, cfg):
             self.hover = False        # the mouse is over the card: show the close button
             self.over_close = False
             self.drag_from = None     # where the card was grabbed, while dragging
+            self.hidden_by_wheel = False  # holding PS on the wheel hides and shows it
             self.state = dict(OFFLINE)
             self.steer = 0.0
             self.pedals = {"clutch": 0.0, "brake": 0.0, "gas": 0.0}
@@ -312,6 +314,10 @@ def build(args, cfg):
                 self.busy_since = None
             if state.get("gear") and state.get("gear") != self.state.get("gear"):
                 self.gear_changed = time.monotonic()
+            hidden = bool(state.get("hud_hidden"))
+            if hidden != self.hidden_by_wheel:
+                self.hidden_by_wheel = hidden
+                self.setVisible(not hidden)
             self.state = state
 
         def tick(self):
