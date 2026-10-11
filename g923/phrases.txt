@@ -1,0 +1,52 @@
+# Common prompt phrases, one per line. They seed next-word suggestions, so a
+# fresh install can already finish "fix the ..." or "can you ...". Your own
+# Claude Code prompt history is learned on top and counts for more.
+can you fix the failing tests
+can you explain how this works
+can you add a test for this
+can you check the logs
+fix the bug in the
+fix the failing tests
+fix the build
+run the tests and fix any failures
+run the tests again
+add a test for the
+add tests for the new code
+add a comment explaining why
+write a function that
+write tests for this
+explain what this code does
+explain the error
+what does this function do
+what is the best way to
+why is this test failing
+why does this happen
+how do i run the tests
+how does this work
+make it faster
+make it simpler
+make sure the tests pass
+make a plan first
+update the readme
+update the docs
+update the changelog
+refactor this into a function
+refactor the code to be cleaner
+rename this to something clearer
+remove the unused code
+look at the error and fix it
+look at the diff
+commit and push the changes
+commit the changes
+open a pull request
+review the pull request
+create a new branch
+show me the diff
+summarize the changes
+keep going
+continue where you left off
+use the existing helper
+undo the last change
+that looks good thanks
+yes please do that
+no do not do that

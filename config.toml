@@ -106,7 +106,7 @@ sets = [
   "1234567890",
   "/@.-_?!:,'\"()[]{}<>=+*&|#$%~`;\\^",
 ]
-suggest_after = 2        # letters typed before word suggestions kick in
+suggest_after = 2        # letters typed before suggestions also pop up as a notification
 history_file = "~/.claude/history.jsonl"
 backspace_repeat_after_s = 0.4  # hold the backspace button this long before it repeats
 backspace_repeat_rate_s = 0.1   # seconds between repeats once it starts
@@ -124,8 +124,10 @@ dpad_down = "set_next"
 dial_enter = "commit"
 cross = "space"
 circle = "backspace"
-square = "suggest"
-triangle = "accept"
+paddle_left = "pick_left"    # the suggestion bar: left word
+triangle = "pick_center"     # the best guess, in the middle
+paddle_right = "pick_right"  # right word
+square = "more"              # three more suggestions
 
 [feedback]
 socket = "$XDG_RUNTIME_DIR/g923.sock"
