@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the floating HUD from the repo's virtualenv. Works from any directory.
+here="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+export PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}"
+exec "$here/.venv/bin/python" -m g923.hud "$@"

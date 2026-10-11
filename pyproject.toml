@@ -10,6 +10,9 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = ["evdev>=1.7"]
+
+[project.optional-dependencies]
+hud = ["PySide6-Essentials>=6.5"]
 classifiers = [
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
@@ -23,6 +26,7 @@ Repository = "https://github.com/Emperor-Z/g923-claude"
 g923d = "g923.daemon:main"
 g923-ping = "g923.ping:main"
 g923-hooks = "g923.hooks:main"
+g923-hud = "g923.hud:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["g923"]
