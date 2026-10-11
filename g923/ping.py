@@ -1,25 +1,75 @@
 """Tell g923d what Claude Code is doing. Called from Claude Code hooks.
 
-Usage: g923-ping busy|done|attention|clear
+Usage: g923-ping busy|tool|attention|clear|done
+
+The hook's JSON input (on stdin) is boiled down to the task, the tool and
+its command or file, so the HUD can say what Claude is doing.
 
 Never fails and never blocks for long, so a stopped daemon can't slow
 Claude Code down. bin/g923-ping is a standalone copy that runs without the
 virtualenv, which keeps hook startup fast.
 """
 
+import json
 import os
+import select
 import socket
 import sys
+
+LIMIT = 120  # characters of a prompt or command worth showing
+DETAIL_KEYS = ("command", "file_path", "notebook_path", "pattern", "url", "query",
+               "description", "prompt")
+
+
+def detail(tool_input):
+    """The one-line gist of a tool call: its command, file, pattern or URL."""
+    for key in DETAIL_KEYS:
+        value = tool_input.get(key)
+        if isinstance(value, str) and value.strip():
+            if key.endswith("path"):
+                value = os.path.basename(value)
+            return " ".join(value.split())[:LIMIT]
+    return ""
+
+
+def message(event, hook_input):
+    """What to send for one hook: plain words, or a little JSON when the hook
+    told us what Claude is working on."""
+    if not isinstance(hook_input, dict):
+        return event
+    msg = {"event": event}
+    if hook_input.get("cwd"):
+        msg["session"] = os.path.basename(str(hook_input["cwd"]).rstrip("/"))
+    if isinstance(hook_input.get("prompt"), str):
+        msg["prompt"] = " ".join(hook_input["prompt"].split())[:LIMIT]
+    if hook_input.get("tool_name"):
+        msg["tool"] = str(hook_input["tool_name"])
+        tool_input = hook_input.get("tool_input")
+        msg["detail"] = detail(tool_input) if isinstance(tool_input, dict) else ""
+    return json.dumps(msg)
+
+
+def read_hook_input():
+    """Claude Code passes each hook a JSON object on stdin."""
+    try:
+        if sys.stdin is None or sys.stdin.isatty():
+            return None
+        if not select.select([sys.stdin], [], [], 0.2)[0]:
+            return None
+        return json.loads(sys.stdin.read())
+    except (OSError, ValueError):
+        return None
 
 
 def main():
     path = os.environ.get("G923_SOCKET") or os.path.join(
         os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), "g923.sock")
+    payload = message(" ".join(sys.argv[1:]), read_hook_input())
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
             s.settimeout(0.3)
             s.connect(path)
-            s.sendall(" ".join(sys.argv[1:]).encode())
+            s.sendall(payload.encode())
     except OSError:
         pass
 

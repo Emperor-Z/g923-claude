@@ -85,6 +85,40 @@ class SnapshotTest(unittest.TestCase):
         d = Daemon(cfg, Recorder(), SilentFeedback(), claude={"effortLevel": "turbo"})
         self.assertEqual(d.snapshot()["effort"], cfg["effort"]["start"])
 
+    def test_a_turn_from_prompt_to_done(self):
+        d = make()
+        d.hook_event("busy", {"prompt": "fix the tests", "session": "my-app"})
+        d.hook_event("tool", {"tool": "Read", "detail": "daemon.py"})
+        self.assertEqual(d.snapshot()["tool"], {"name": "Read", "detail": "daemon.py"})
+        d.hook_event("clear", {"tool": "Read"})
+        d.hook_event("tool", {"tool": "Bash", "detail": "npm test"})
+        d.hook_event("attention", {"tool": "Bash", "detail": "npm test"})
+        snap = d.snapshot()
+        self.assertEqual(snap["approval"], {"name": "Bash", "detail": "npm test"})
+        self.assertEqual((snap["task"], snap["session"]), ("fix the tests", "my-app"))
+        d.hook_event("clear", {"tool": "Bash"})
+        d.hook_event("done")
+        snap = d.snapshot()
+        self.assertEqual((snap["trail"], snap["steps"]), (["Read", "Bash"], 2))
+        self.assertIsNone(snap["tool"])
+        self.assertIsNone(snap["approval"])
+        self.assertEqual(snap["task"], "fix the tests")  # still shown with "done"
+
+    def test_next_prompt_starts_a_fresh_trail(self):
+        d = make()
+        d.hook_event("busy", {"prompt": "one"})
+        d.hook_event("clear", {"tool": "Read"})
+        d.hook_event("done")
+        d.hook_event("busy", {"prompt": "two"})
+        snap = d.snapshot()
+        self.assertEqual((snap["task"], snap["trail"], snap["steps"]), ("two", [], 0))
+
+    def test_tool_without_a_prompt_still_counts_as_working(self):
+        d = make()  # e.g. the daemon restarted mid-turn
+        d.hook_event("tool", {"tool": "Edit", "detail": "hud.py"})
+        self.assertEqual(d.snapshot()["claude"], "busy")
+        self.assertIsNotNone(d.snapshot()["busy_since"])
+
     def test_snapshot_is_json(self):
         json.dumps(make().snapshot())
 
