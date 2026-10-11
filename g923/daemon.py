@@ -194,9 +194,10 @@ class Daemon:
         while True:
             if time.monotonic() - held >= t["backspace_word_after_s"]:
                 self.typer.backspace_word()
+                await asyncio.sleep(t["backspace_word_rate_s"])
             else:
                 self.typer.backspace()
-            await asyncio.sleep(t["backspace_repeat_rate_s"])
+                await asyncio.sleep(t["backspace_repeat_rate_s"])
 
     def stop_backspace(self):
         if self.backspace_task:

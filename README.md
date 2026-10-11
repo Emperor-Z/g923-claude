@@ -108,7 +108,7 @@ Letters run **a to z** and wrap around, so spin anticlockwise to reach the end o
 
 **What you see is what you get.** A previewed character or suggested word that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
 
-**Holding ○ clears faster.** One press is one character; hold it for 0.4 s and backspace repeats like a keyboard key, and after 1.5 s of holding it deletes whole words (`Ctrl+W`) instead. The timings live in `[type]` as `backspace_repeat_after_s`, `backspace_repeat_rate_s` and `backspace_word_after_s`.
+**Holding ○ clears faster.** One press is one character; hold it for 0.4 s and backspace repeats like a keyboard key, and after 1.5 s of holding it deletes whole words (`Ctrl+W`) instead. Word deletes repeat more slowly (every 0.3 s) so you can let go in time. The timings live in `[type]` as `backspace_repeat_after_s`, `backspace_repeat_rate_s`, `backspace_word_after_s` and `backspace_word_rate_s`.
 
 **Word suggestions.** After two committed letters, a notification shows the top three guesses. □ types the first one inline, and pressing □ again swaps it for the next; △ accepts it and adds a space (if nothing is showing, △ inserts the top guess directly). Guesses come from a built-in list (`g923/words.txt`) blended with words from your own past Claude Code prompts (`~/.claude/history.jsonl`), which are read locally at startup and never written anywhere.
 

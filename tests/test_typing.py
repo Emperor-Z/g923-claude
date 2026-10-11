@@ -51,12 +51,13 @@ DIAL_CW, DIAL_CCW, DIAL_ENTER = 709, 710, 711
 CROSS, CIRCLE, SQUARE, TRIANGLE = 288, 290, 289, 291
 
 
-def fast_backspace(d, after=0.05, rate=0.05, word_after=1.0):
+def fast_backspace(d, after=0.05, rate=0.05, word_after=1.0, word_rate=0.05):
     """Shrink the hold timings so the repeat tests run quickly."""
     t = d.cfg["type"]
     t["backspace_repeat_after_s"] = after
     t["backspace_repeat_rate_s"] = rate
     t["backspace_word_after_s"] = word_after
+    t["backspace_word_rate_s"] = word_rate
 
 
 def hold(d, code, seconds):
@@ -213,6 +214,15 @@ class TypeModeTest(unittest.TestCase):
         self.assertLess(d.out.log.index(("key", "backspace")),
                         d.out.log.index(("key", "ctrl+w")))
         self.assertEqual(d.typer.word, "")
+
+    def test_word_deletes_repeat_at_their_own_rate(self):
+        d = make()
+        fast_backspace(d, rate=0.02, word_after=0.1, word_rate=0.3)
+        for _ in range(4):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)
+        hold(d, CIRCLE, 0.5)
+        # About 0.4 s of word mode at one per 0.3 s: two at most, not twenty.
+        self.assertIn(sent(d, "ctrl+w"), (1, 2))
 
     def test_backspace_word_deletes_the_whole_word(self):
         d = make()
