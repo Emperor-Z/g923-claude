@@ -121,14 +121,15 @@ Tips:
 
 ## Floating HUD
 
-<img src="docs/img/hud.png" alt="The HUD card: Claude editing a file, asking to run a command with the wheel buttons that answer it, done with its steps listed, and Type mode picking the next letter" width="100%">
+<img src="docs/img/hud.png" alt="The HUD: Claude editing a file, asking to run a command with the wheel buttons that answer it, done with its steps listed, and Type mode picking the next letter" width="100%">
 
-A small card that floats in the bottom-right corner of your screen and tells you, in plain words, what Claude is doing and what the wheel will do next:
+A card that floats in the bottom-right corner of your screen: half agent status, half racing dash.
 
-- **What Claude is doing right now:** "Thinking…", "Editing hud.py", "Running npm test". A timer counts the turn and a status light spins while it works.
-- **The task and its steps:** your prompt, then the steps so far as breadcrumbs (Read ✓ › Grep ✓ › Edit), and "Done in 1:42" when it finishes.
-- **Approvals you can answer from the wheel:** when Claude asks permission, the card turns amber and shows the command along with the buttons that answer it: ✕ Yes, □ Always, ○ No.
-- **The wheel at a glance:** gear, model and `/effort` along the bottom, the Drive or Type mode, and a small wheel that turns with yours. In Type mode the card shows your word, the letter you're on, and its neighbours on the dial.
+- **What Claude is doing, in plain words:** "Thinking…", "Editing hud.py", "Running npm test", with a timer, your prompt, and the steps so far as breadcrumbs (Read ✓ › Grep ✓ › Edit). It ends with "Done in 1:42".
+- **F1 rev lights as the status light:** they rev while Claude works (faster while a tool runs), flash amber when it needs you, and go green when it's done.
+- **Approvals you answer from the wheel:** the card turns amber and shows the command along with the buttons that answer it: ✕ Yes, □ Always, ○ No.
+- **A racing dial:** its rim turns with your real wheel. The gear sits in the middle, `/effort` is the tach arc around it (max is the red zone), and the model is underneath. Live clutch, brake and gas bars sit beside it.
+- **Type mode:** your word, the letter you're on, and its neighbours on the dial.
 
 It never takes keyboard focus and clicks pass straight through it, so the wheel keeps typing into Claude.
 
@@ -138,7 +139,7 @@ pipx install 'g923-claude[hud]'     # from PyPI, then run: g923-hud
 g923-hud --demo                     # preview it without a wheel
 ```
 
-Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. Set `show_details = false` to keep your prompts and commands off the card when you share your screen. On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
+Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. Set `show_details = false` to keep your prompts and commands off the card when you share your screen. The gear and model use the bundled Titillium Web font (SIL Open Font License, `g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
 
 ## How it works
 
@@ -150,7 +151,7 @@ Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the
                    │
                    ├─▶ feedback: force feedback on the wheel, or notification + sound
                    │
-                   └─▶ live state on the same socket ──▶ g923-hud (optional status card)
+                   └─▶ live state on the same socket ──▶ g923-hud (optional on-screen HUD)
 ```
 
 The daemon reads the wheel through evdev and types into whichever window has focus through a virtual uinput keyboard, so it works on any Wayland compositor (GNOME included) and X11. Claude Code hooks report back over a Unix socket so the wheel can react.
