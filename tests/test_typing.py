@@ -184,6 +184,24 @@ class TypeModeTest(unittest.TestCase):
         asyncio.run(idle())
         self.assertEqual(sent(d, "backspace"), sent_so_far)
 
+    def test_other_type_buttons_stop_the_repeat(self):
+        d = make()
+        fast_backspace(d)
+        for _ in range(3):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)   # aaa
+
+        async def go():
+            key(d, CIRCLE, True)
+            await asyncio.sleep(0.03)             # first delete, no repeat yet
+            tap(d, DIAL_CW)                       # preview a while ○ is still down
+            await asyncio.sleep(0.2)
+            key(d, CIRCLE, False)
+            await asyncio.sleep(0.02)
+
+        asyncio.run(go())
+        self.assertEqual(screen(d.out.log), "aaa")  # two kept, plus the new preview
+        self.assertEqual(d.typer.preview, "a")
+
     def test_hold_switches_to_deleting_words(self):
         d = make()
         fast_backspace(d, word_after=0.15)

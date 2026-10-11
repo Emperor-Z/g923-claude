@@ -109,9 +109,12 @@ class Daemon:
                 self.set_mode("drive" if name == modes["drive"] else "type")
             return
         if self.mode == "type" and name in self.cfg["type_keys"]:
+            is_backspace = self.cfg["type_keys"][name] == "backspace"
             if down:
+                if not is_backspace:
+                    self.stop_backspace()  # don't let the repeat eat what you just typed
                 self.type_button(name)
-            if self.cfg["type_keys"][name] == "backspace":
+            if is_backspace:
                 self.hold_backspace(down)
             return
         # Anything else falls through to Drive mode, so pedals, paddles and
