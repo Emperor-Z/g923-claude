@@ -1,13 +1,16 @@
-"""Floating HUD: a small racing-style dashboard in a corner of the screen.
+"""Floating HUD: a small card in the corner of the screen that says what Claude
+is doing and what the wheel will do next.
 
-F1-style rev lights show what Claude is doing, a scrolling input trace shows
-your pedals and steering, and a dial in the corner turns with your wheel and
-shows the gear, model and effort. In Type mode the trace makes way for the
-letter picker. It never takes focus and clicks go straight through it, so the
-wheel's key presses still reach Claude.
+It reads like an agent status card: what Claude is doing right now ("Editing
+hud.py", "Running npm test"), the task it's on, the last few steps, and a
+timer. When Claude asks for permission it shows the command and which wheel
+buttons answer it. The footer has the gear, model, effort and mode, with a
+small wheel that turns with yours. In Type mode it shows the word and the
+letter picker instead.
 
-It watches g923d over the same socket the Claude Code hooks use. Needs the
-optional Qt dependency: pipx install 'g923-claude[hud]'.
+It never takes focus and clicks go straight through it, so the wheel's key
+presses still reach Claude. It watches g923d over the same socket the Claude
+Code hooks use. Needs the optional Qt dependency: pipx install 'g923-claude[hud]'.
 """
 
 import argparse
@@ -16,40 +19,45 @@ import math
 import os
 import sys
 import time
-from collections import deque
-from pathlib import Path
 
 from . import config
 
-W, H = 440, 150
-FONT_DIR = Path(__file__).with_name("fonts")
+W, H = 380, 150     # the card; the window adds room for its shadow
+PAD = 14
 COLORS = {
-    "accent": "#ff5a36", "text": "#eef2f6", "dim": "#8a93a0", "faint": "#262c35",
-    "green": "#22e06b", "red": "#ff2e45", "blue": "#3d7bff", "amber": "#ffb020",
-    "panel_top": "#161a22", "panel_bottom": "#090b0f",
+    "card": "#17171b", "text": "#f4f4f5", "muted": "#a1a1aa", "faint": "#71717a",
+    "line": "#2a2a31", "chip": "#24242a",
+    "coral": "#e07b53", "amber": "#f5a524", "green": "#3fb950", "red": "#f04f5a",
+    # PlayStation button colours, as on the wheel
+    "cross": "#7aa7ff", "circle": "#ff6b81", "square": "#d6a2e8", "triangle": "#4fd1c5",
 }
-STATUS_COLORS = {"busy": "amber", "attention": "red", "done": "green"}
-PEDAL_COLORS = {"clutch": "blue", "brake": "red", "gas": "green"}
-LEDS = ["green"] * 5 + ["red"] * 5 + ["blue"] * 5   # an F1 wheel's shift lights
-MODEL_NAMES = {"opus[1m]": "OPUS 1M", "opusplan": "OPUS PLAN"}
-FAMILIES = ["Titillium Web", "Adwaita Sans", "Cantarell", "Segoe UI", "Helvetica Neue", "Arial"]
-TRACE_SECONDS = 6.0
-DONE_FOR = 4.0     # seconds the "done" lights stay up
-NOTICE_FOR = 2.5   # seconds a notification line stays up
+SANS = ["Inter", "Adwaita Sans", "Segoe UI Variable Text", "Segoe UI", "SF Pro Text",
+        "Helvetica Neue", "Arial"]
+MONO = ["JetBrains Mono", "Adwaita Mono", "Cascadia Mono", "SF Mono", "Menlo", "Consolas",
+        "monospace"]
+VERBS = {
+    "Bash": "Running", "Edit": "Editing", "MultiEdit": "Editing", "Write": "Writing",
+    "NotebookEdit": "Editing", "Read": "Reading", "Grep": "Searching", "Glob": "Finding",
+    "WebFetch": "Fetching", "WebSearch": "Searching the web for", "Task": "Delegating",
+    "Agent": "Delegating", "TodoWrite": "Planning",
+}
+MODEL_NAMES = {"opus[1m]": "Opus 1M", "opusplan": "Opus Plan"}
+DONE_FOR = 8.0     # seconds "Done" stays up before settling back to "Ready"
+NOTICE_FOR = 2.5   # seconds a gear or effort change stays up
 OFFLINE = {"daemon": False}
 
 
 def model_name(model):
-    """'opus' -> OPUS, 'claude-sonnet-5-5[1m]' -> SONNET 5.5 1M."""
+    """'opus' -> Opus, 'claude-sonnet-5-5[1m]' -> Sonnet 5.5 1M."""
     if not model:
-        return "—"
+        return "No model"
     if model in MODEL_NAMES:
         return MODEL_NAMES[model]
     model, long_context = model.removesuffix("[1m]"), model.endswith("[1m]")
     parts = model.removeprefix("claude-").split("-")
-    words = [p for p in parts if not p.isdigit()]
+    words = [p.capitalize() for p in parts if not p.isdigit()]
     version = ".".join(p for p in parts if p.isdigit() and len(p) <= 2)  # drop date stamps
-    name = " ".join(words + [version] if version else words).upper()
+    name = " ".join(words + [version] if version else words)
     return name + (" 1M" if long_context else "")
 
 
@@ -58,17 +66,25 @@ def clock(seconds):
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
-def lit_leds(claude, now, busy_since=None, done_at=None):
-    """How the 15 rev lights look right now: (count lit, brightness)."""
-    n = len(LEDS)
-    if claude == "attention":
-        return n, 1.0 if int(now * 4) % 2 else 0.15      # flashing, like a pit limiter
-    if claude == "busy":
-        phase = ((now - (busy_since or now)) % 1.8) / 1.8
-        return round(n * (0.5 - 0.5 * math.cos(2 * math.pi * phase))), 1.0  # revving
-    if done_at and now - done_at < DONE_FOR:
-        return n, 1 - (now - done_at) / DONE_FOR
-    return 0, 0.0
+def tool_label(name):
+    """'mcp__github__create_issue' -> 'github'; everything else stays as is."""
+    if name.startswith("mcp__"):
+        return name.split("__")[1] if name.count("__") >= 2 else name[5:]
+    return name
+
+
+def doing(tool, details=True):
+    """A plain-words headline for a running tool: 'Editing hud.py'."""
+    name = tool.get("name", "")
+    detail = tool.get("detail", "") if details else ""
+    if name.startswith("mcp__"):
+        return f"Using {tool_label(name)}"
+    verb = VERBS.get(name)
+    if not verb:
+        return f"Using {name}"
+    if name in ("Grep", "WebSearch") and detail:
+        detail = f"“{detail}”"
+    return f"{verb} {detail}" if detail else f"{verb}…"
 
 
 def demo_state(t):
@@ -80,33 +96,38 @@ def demo_state(t):
         "claude": "idle", "busy_since": None, "done_at": None,
         "gear": None, "model": "sonnet", "effort": "high",
         "effort_levels": ["low", "medium", "high", "xhigh", "max"],
-        "steer_deg": round(70 * math.sin(t * 0.7) + 15 * math.sin(t * 2.3), 1),
-        "pedals": {
-            "clutch": 0.0,
-            "brake": round(max(0.0, -math.sin(t * 0.9 + 0.4)) ** 3, 2),
-            "gas": round(max(0.0, math.sin(t * 0.9)) ** 0.7, 2),
-        },
+        "steer_deg": round(70 * math.sin(t * 0.7), 1),
+        "pedals": {"clutch": 0.0, "brake": 0.0, "gas": 0.0},
         "type": {"set": "abc", "chars": "abcdefghijklmnopqrstuvwxyz", "idx": 0,
                  "preview": None, "word": ""},
-        "notice": None,
+        "notice": None, "session": "g923-claude", "task": None, "tool": None,
+        "approval": None, "trail": [], "steps": 0,
     }
-    if 2 <= t < 4:
-        s["pedals"]["clutch"] = 1.0
     if t >= 3:
         s["gear"], s["model"] = "3", "opus"
         s["notice"] = {"title": "Gear 3", "body": "/model opus", "at": now - (t - 3)}
-    if 5 <= t < 14:
-        s["claude"], s["busy_since"] = "busy", now - (t - 5)
-    if 10 <= t < 12:
-        s["claude"] = "attention"
-    if t >= 14:
-        s["done_at"] = now - (t - 14)
+    steps = [(6.5, "Read", "hud.py"), (8, "Grep", "paintEvent"), (9.5, "Edit", "hud.py"),
+             (10, "Bash", "python -m unittest discover -s tests")]
+    if t >= 5:
+        s.update(task="make the HUD easier to read at a glance", claude="busy",
+                 busy_since=now - (t - 5))
+        for i, (start, name, detail) in enumerate(steps):
+            if t >= start:
+                s["tool"] = {"name": name, "detail": detail}
+                s["trail"] = [x[1] for x in steps[:i]]
+                s["steps"] = i
+        if 10 <= t < 12:
+            s["claude"], s["approval"] = "attention", {"name": "Bash", "detail": steps[3][2]}
+        if t >= 13.5:
+            s["tool"], s["trail"], s["steps"] = None, [x[1] for x in steps], 4
+    if t >= 14.5:
+        s.update(claude="idle", busy_since=None, done_at=now - (t - 14.5), tool=None)
     if t >= 17:
         word = "refactor"[: int((t - 17) * 1.4)]
+        nxt = "refactor"[len(word) % 8]
         s["mode"] = "type"
-        s["type"].update(word=word, idx=s["type"]["chars"].index("refactor"[len(word) % 8]),
-                         preview="refactor"[len(word) % 8] if int(t * 3) % 2 else None)
-        s["notice"] = None
+        s["type"].update(word=word, idx=s["type"]["chars"].index(nxt),
+                         preview=nxt if int(t * 3) % 2 else None)
     return s
 
 
@@ -118,9 +139,8 @@ def build(args, cfg):
         os.environ["QT_QPA_PLATFORM"] = "xcb"
     try:
         from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
-        from PySide6.QtGui import (QColor, QFont, QFontDatabase, QFontMetricsF,
-                                   QGuiApplication, QLinearGradient, QPainter,
-                                   QPainterPath, QPen, QRadialGradient)
+        from PySide6.QtGui import (QBrush, QColor, QFont, QFontMetricsF, QGuiApplication,
+                                   QLinearGradient, QPainter, QPainterPath, QPen)
         from PySide6.QtNetwork import QLocalSocket
         from PySide6.QtWidgets import QApplication, QWidget
     except ImportError:
@@ -128,34 +148,34 @@ def build(args, cfg):
                  "(or pip install PySide6-Essentials)")
 
     hud_cfg = cfg.get("hud", {})
+    details = hud_cfg.get("show_details", True)
 
     def color(name, alpha=1.0):
         c = QColor(COLORS.get(name, name))
         c.setAlphaF(max(0.0, min(1.0, alpha)))
         return c
 
-    def font(size, weight=QFont.Weight.Bold, spacing=0.0, italic=False, tabular=False):
+    def font(size, weight=QFont.Weight.Normal, mono=False, tabular=False):
         f = QFont()
-        f.setFamilies(FAMILIES)
+        f.setFamilies(MONO if mono else SANS)
         f.setPixelSize(round(size))
         f.setWeight(weight)
-        f.setItalic(italic)
-        if spacing:
-            f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, spacing)
         if tabular:
             f.setFeature(QFont.Tag("tnum"), 1)  # digits that don't jiggle as the timer runs
         return f
 
-    def pen(c, width, cap=Qt.PenCapStyle.RoundCap):
-        return QPen(c, width, Qt.PenStyle.SolidLine, cap, Qt.PenJoinStyle.RoundJoin)
+    def pen(c, width):
+        return QPen(c, width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
 
-    def glow(p, center, radius, c, strength):
-        g = QRadialGradient(center, radius)
-        g.setColorAt(0, color(c.name(), 0.55 * strength))
-        g.setColorAt(1, color(c.name(), 0.0))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(g)
-        p.drawEllipse(center, radius, radius)
+    def text(p, x, y, s, f, c, max_width=None, elide=Qt.TextElideMode.ElideRight):
+        """Draw s with its baseline at y; returns the x where it ends."""
+        fm = QFontMetricsF(f)
+        if max_width is not None:
+            s = fm.elidedText(s, elide, max(0.0, max_width))
+        p.setFont(f)
+        p.setPen(c)
+        p.drawText(QPointF(x, y), s)
+        return x + fm.horizontalAdvance(s)
 
     class Feed:
         """Follows g923d's state, reconnecting whenever the daemon restarts."""
@@ -199,11 +219,10 @@ def build(args, cfg):
             self.scale, self.opacity = scale, opacity
             self.state = dict(OFFLINE)
             self.steer = 0.0
-            self.pedals = {"clutch": 0.0, "brake": 0.0, "gas": 0.0}
-            self.trace = deque(maxlen=int(TRACE_SECONDS * 30))
             self.busy_since = None
-            self.last_turn = None   # how long the last turn took, for "done in"
-            self.last_tick = self.last_sample = time.monotonic()
+            self.last_turn = None     # how long the last turn took, for "Done in"
+            self.gear_changed = 0.0   # when the gear last changed, for a little pop
+            self.last_tick = time.monotonic()
             self.setWindowTitle("g923 HUD")
             self.setWindowFlags(
                 Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
@@ -213,7 +232,7 @@ def build(args, cfg):
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
             self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            self.setFixedSize(round(W * scale), round(H * scale))
+            self.setFixedSize(round((W + 2 * PAD) * scale), round((H + 2 * PAD) * scale))
             self.timer = QTimer(interval=16)
             self.timer.timeout.connect(self.tick)
             self.timer.start()
@@ -224,26 +243,44 @@ def build(args, cfg):
             elif self.busy_since and state.get("done_at"):
                 self.last_turn = state["done_at"] - self.busy_since
                 self.busy_since = None
+            if state.get("gear") and state.get("gear") != self.state.get("gear"):
+                self.gear_changed = time.monotonic()
             self.state = state
-
-        def sample(self, state):
-            p = state.get("pedals", {})
-            self.trace.append((p.get("gas", 0.0), p.get("brake", 0.0), p.get("clutch", 0.0),
-                               state.get("steer_deg", 0.0)))
 
         def tick(self):
             now = time.monotonic()
             k = min(1.0, (now - self.last_tick) * 14)
             self.last_tick = now
-            s = self.state
-            self.steer += (max(-450, min(450, s.get("steer_deg", 0.0))) - self.steer) * k
-            for name in self.pedals:
-                target = s.get("pedals", {}).get(name, 0.0)
-                self.pedals[name] += (target - self.pedals[name]) * k
-            if now - self.last_sample >= 1 / 30:
-                self.last_sample = now
-                self.sample({"pedals": self.pedals, "steer_deg": self.steer})
+            self.steer += (max(-450, min(450, self.state.get("steer_deg", 0.0))) - self.steer) * k
             self.update()
+
+        # --- what to say ------------------------------------------------
+
+        def phase(self, s):
+            """offline | approval | working | thinking | done | idle"""
+            if not s.get("daemon"):
+                return "offline"
+            if s.get("claude") == "attention":
+                return "approval"
+            if s.get("claude") == "busy":
+                return "working" if s.get("tool") else "thinking"
+            if s.get("done_at") and time.time() - s["done_at"] < DONE_FOR:
+                return "done"
+            return "idle"
+
+        def headline(self, s, phase):
+            if phase == "offline":
+                return "g923d isn't running"
+            if phase == "approval":
+                name = (s.get("approval") or s.get("tool") or {}).get("name")
+                return f"Allow {tool_label(name)}?" if name else "Claude needs your OK"
+            if phase == "working":
+                return doing(s["tool"], details)
+            if phase == "thinking":
+                return "Thinking…"
+            if phase == "done":
+                return f"Done in {clock(self.last_turn)}" if self.last_turn else "Done"
+            return "Ready"
 
         # --- painting -------------------------------------------------
 
@@ -251,261 +288,289 @@ def build(args, cfg):
             p = QPainter(self)
             p.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing)
             p.scale(self.scale, self.scale)
-            s = self.state
-            live = bool(s.get("daemon") and s.get("connected") and s.get("armed"))
             p.setOpacity(self.opacity)
-            self.panel(p)
-            p.setOpacity(self.opacity * (1.0 if live else 0.5))
-            self.rev_lights(p, s, live)
-            if s.get("mode") == "type" and live:
-                self.letters(p, s)
+            p.translate(PAD, PAD)
+            s = self.state
+            phase = self.phase(s)
+            self.card(p, phase)
+            self.orb(p, phase)
+            self.header(p, s, phase)
+            if s.get("mode") == "type" and s.get("daemon"):
+                self.typing(p, s)
             else:
-                self.inputs(p, s)
-            self.pedal_bars(p)
-            self.dial(p, s, live)
+                self.body(p, s, phase)
             self.footer(p, s)
             p.end()
 
-        def panel(self, p):
-            # A slanted leading edge, like a racing livery.
-            r, slant = 16, 26
+        def card(self, p, phase):
+            for i in range(PAD, 0, -2):   # soft shadow
+                shadow = QPainterPath()
+                shadow.addRoundedRect(QRectF(-i, -i + 4, W + 2 * i, H + 2 * i), 20 + i, 20 + i)
+                p.fillPath(shadow, QColor(0, 0, 0, 7))
             path = QPainterPath()
-            path.moveTo(slant + r, 0)
-            path.lineTo(W - r, 0)
-            path.quadTo(W, 0, W, r)
-            path.lineTo(W, H - r)
-            path.quadTo(W, H, W - r, H)
-            path.lineTo(r, H)
-            path.quadTo(0, H, 2, H - r * 0.9)
-            path.lineTo(slant - 2, r * 0.9)
-            path.quadTo(slant, 0, slant + r, 0)
+            path.addRoundedRect(QRectF(0, 0, W, H), 20, 20)
             g = QLinearGradient(0, 0, 0, H)
-            g.setColorAt(0, color("panel_top", 0.93))
-            g.setColorAt(1, color("panel_bottom", 0.95))
+            g.setColorAt(0, QColor(30, 30, 35, 245))
+            g.setColorAt(1, QColor(20, 20, 24, 245))
             p.fillPath(path, g)
-            p.setPen(pen(QColor(255, 255, 255, 18), 1))
+            edge = {"approval": color("amber", 0.55), "done": color("green", 0.35)}.get(phase)
+            p.setPen(pen(edge or QColor(255, 255, 255, 22), 1.2 if edge else 1))
             p.drawPath(path)
-            # Accent stripe running parallel to the slanted edge, just inside it.
-            top, bottom = QPointF(slant - 2, r * 0.9), QPointF(2, H - r * 0.9)
 
-            def inside(y):
-                t = (y - top.y()) / (bottom.y() - top.y())
-                return QPointF(top.x() + (bottom.x() - top.x()) * t + 9, y)
-
-            p.setPen(pen(color("accent", 0.9), 3))
-            p.drawLine(inside(28), inside(H - 28))
-
-        def rev_lights(self, p, s, live):
-            now = time.time()
-            claude = s.get("claude", "idle") if live else "idle"
-            lit, level = lit_leds(claude, now, s.get("busy_since"), s.get("done_at"))
-            for i, name in enumerate(LEDS):
-                c = QPointF(52 + i * 17.2, 18)
-                if claude == "idle":
-                    name = "green"  # finished: the whole strip goes green
-                elif claude == "attention":
-                    name = "red"
-                on = i < lit and level > 0.05
-                if on:
-                    glow(p, c, 10, color(name), level)
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(color(name, 0.25 + 0.75 * level) if on else color("faint"))
-                p.drawEllipse(c, 4.2, 4.2)
-
-        def inputs(self, p, s):
-            """RaceLab-style scrolling trace of the pedals and steering."""
-            box = QRectF(40, 32, 232, 82)
+        def orb(self, p, phase):
+            """The status light: breathing when idle, spinning while Claude works,
+            pinging when it needs you, a tick when it's done."""
+            c, now = QPointF(30, 30), time.time()
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(0, 0, 0, 70))
-            p.drawRoundedRect(box, 8, 8)
-            p.setPen(pen(QColor(255, 255, 255, 14), 1, Qt.PenCapStyle.FlatCap))
-            for frac in (0.25, 0.5, 0.75):
-                y = box.top() + box.height() * frac
-                p.drawLine(QPointF(box.left() + 6, y), QPointF(box.right() - 6, y))
-
-            samples = list(self.trace)
-            if len(samples) < 2:
-                return
-            inner = box.adjusted(6, 8, -6, -8)
-            step = inner.width() / (self.trace.maxlen - 1)
-            x0 = inner.right() - step * (len(samples) - 1)
-
-            def line(values, c, width, fill=False, alpha=1.0):
-                path = QPainterPath()
-                for i, v in enumerate(values):
-                    pt = QPointF(x0 + i * step, inner.bottom() - inner.height() * max(0.0, min(1.0, v)))
-                    path.lineTo(pt) if i else path.moveTo(pt)
-                if fill:
-                    area = QPainterPath(path)
-                    area.lineTo(inner.right(), inner.bottom())
-                    area.lineTo(x0, inner.bottom())
-                    g = QLinearGradient(0, inner.top(), 0, inner.bottom())
-                    g.setColorAt(0, color(c, 0.28))
-                    g.setColorAt(1, color(c, 0.0))
-                    p.fillPath(area, g)
-                p.setPen(pen(color(c, alpha), width))
+            if phase == "offline":
+                p.setPen(pen(color("faint"), 1.5))
                 p.setBrush(Qt.BrushStyle.NoBrush)
-                p.drawPath(path)
+                p.drawEllipse(c, 6, 6)
+            elif phase == "idle":
+                p.setBrush(color("muted", 0.12))
+                p.drawEllipse(c, 12, 12)
+                p.setBrush(color("muted", 0.55 + 0.35 * math.sin(now * 2.1)))
+                p.drawEllipse(c, 4.5, 4.5)
+            elif phase in ("thinking", "working"):
+                p.setBrush(color("coral", 0.16))
+                p.drawEllipse(c, 12, 12)
+                p.setBrush(color("coral"))
+                p.drawEllipse(c, 4.5, 4.5)
+                p.setPen(pen(color("coral"), 2.2))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawArc(QRectF(c.x() - 11, c.y() - 11, 22, 22), round(-now * 360 * 16) % 5760, 100 * 16)
+            elif phase == "approval":
+                ping = (now * 1.2) % 1.0
+                p.setBrush(color("amber", 0.35 * (1 - ping)))
+                p.drawEllipse(c, 6 + 10 * ping, 6 + 10 * ping)
+                p.setBrush(color("amber"))
+                p.drawEllipse(c, 6, 6)
+            elif phase == "done":
+                p.setBrush(color("green"))
+                p.drawEllipse(c, 11, 11)
+                tick = QPainterPath(QPointF(c.x() - 4.5, c.y() + 0.5))
+                tick.lineTo(c.x() - 1.2, c.y() + 3.8)
+                tick.lineTo(c.x() + 5, c.y() - 3.2)
+                p.setPen(pen(QColor("#0d1f12"), 2.2))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawPath(tick)
 
-            p.save()
-            p.setClipRect(box)
-            # Steering: centre line is straight ahead, edges are half a turn.
-            line([0.5 - max(-1, min(1, x[3] / 180)) / 2 for x in samples], "text", 1.4, alpha=0.5)
-            line([x[2] for x in samples], "blue", 1.4)
-            line([x[1] for x in samples], "red", 2.0, fill=True)
-            line([x[0] for x in samples], "green", 2.0, fill=True)
-            p.restore()
+        def header(self, p, s, phase):
+            now = time.time()
+            right = W - 16
+            # The timer while Claude works, otherwise the project's name.
+            if phase in ("thinking", "working", "approval") and s.get("busy_since"):
+                stamp = clock(now - s["busy_since"])
+            else:
+                stamp = s.get("session") or ""
+            f = font(12, QFont.Weight.Medium, tabular=True)
+            stamp_w = QFontMetricsF(f).horizontalAdvance(stamp)
+            if stamp:
+                text(p, right - stamp_w, 35, stamp, f, color("faint"))
 
-        def letters(self, p, s):
+            title = self.headline(s, phase)
+            f = font(15.5, QFont.Weight.DemiBold)
+            if phase == "thinking":
+                # A shimmer runs across "Thinking…", like a chat app's typing hint.
+                tw = QFontMetricsF(f).horizontalAdvance(title)
+                x = 52 + ((now * 0.9) % 1.6 - 0.3) * tw
+                g = QLinearGradient(x - 40, 0, x + 40, 0)
+                g.setColorAt(0, color("muted"))
+                g.setColorAt(0.5, color("text"))
+                g.setColorAt(1, color("muted"))
+                p.setFont(f)
+                p.setPen(QPen(QBrush(g), 1))
+                p.drawText(QPointF(52, 35), title)
+            else:
+                text(p, 52, 35, title, f, color("text"), right - stamp_w - 12 - 52)
+
+        def body(self, p, s, phase):
+            # Second line: the task, or the command waiting for approval.
+            line = None
+            if phase == "approval":
+                tool = s.get("approval") or s.get("tool") or {}
+                self.code(p, 52, 47, tool.get("detail", "") if details else "", W - 68)
+            elif phase == "offline":
+                line = "Start it: systemctl --user start g923d"
+            elif s.get("task") and phase != "idle":
+                line = f"“{s['task']}”" if details else "Working on your prompt"
+            elif not s.get("connected"):
+                line = "Plug in the wheel to drive"
+            elif not s.get("armed"):
+                line = "Wheel disarmed: press PS to drive"
+            else:
+                line = "Type a prompt, then press Gas to send"
+            if line:
+                text(p, 52, 62, line, font(12.5), color("muted"), W - 68)
+
+            # Third line: a gear or effort change, the wheel buttons that answer
+            # Claude, or the steps so far.
+            n = s.get("notice")
+            if n and time.time() - n.get("at", 0) < NOTICE_FOR:
+                grind = n["title"].startswith("Grind")
+                msg = n["title"] + (f"  ·  {n['body']}" if n.get("body") else "")
+                text(p, 52, 90, msg, font(12, QFont.Weight.Medium), color("red" if grind else "coral"), W - 68)
+            elif phase == "approval":
+                self.buttons(p, 52, 90, [("cross", "Yes"), ("square", "Always"), ("circle", "No")])
+            elif phase in ("thinking", "working", "done"):
+                self.trail(p, s, phase)
+            elif phase == "idle" and s.get("armed") and s.get("connected"):
+                self.buttons(p, 52, 90, [("gas", "Send"), ("brake", "Stop"), ("clutch", "Model")])
+
+        def code(self, p, x, y, cmd, max_width):
+            f = font(12, mono=True)
+            fm = QFontMetricsF(f)
+            cmd = fm.elidedText(cmd or "…", Qt.TextElideMode.ElideRight, max_width - 16)
+            box = QRectF(x, y, fm.horizontalAdvance(cmd) + 16, 21)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(color("chip"))
+            p.drawRoundedRect(box, 6, 6)
+            text(p, x + 8, y + 15, cmd, f, color("text"))
+
+        def buttons(self, p, x, y, items):
+            """Wheel button hints: a coloured glyph (or a pedal's name), then what it does."""
+            for key, label in items:
+                if key in ("cross", "circle", "square"):
+                    c = QPointF(x + 6, y - 4.5)
+                    p.setPen(pen(color(key), 1.7))
+                    p.setBrush(Qt.BrushStyle.NoBrush)
+                    if key == "cross":
+                        p.drawLine(QPointF(c.x() - 4, c.y() - 4), QPointF(c.x() + 4, c.y() + 4))
+                        p.drawLine(QPointF(c.x() - 4, c.y() + 4), QPointF(c.x() + 4, c.y() - 4))
+                    elif key == "circle":
+                        p.drawEllipse(c, 4.6, 4.6)
+                    else:
+                        p.drawRect(QRectF(c.x() - 4, c.y() - 4, 8, 8))
+                    x += 17
+                else:
+                    f = font(9.5, QFont.Weight.Bold)
+                    w = QFontMetricsF(f).horizontalAdvance(key.upper()) + 10
+                    p.setPen(Qt.PenStyle.NoPen)
+                    p.setBrush(color("chip"))
+                    p.drawRoundedRect(QRectF(x, y - 13, w, 17), 5, 5)
+                    text(p, x + 5, y - 1.5, key.upper(), f, color("muted"))
+                    x += w + 6
+                x = text(p, x, y, label, font(12, QFont.Weight.Medium), color("text"), W - 16 - x) + 16
+
+        def trail(self, p, s, phase):
+            """The last few steps, like breadcrumbs: Read ✓ › Grep ✓ › Bash."""
+            items = [(name, "done") for name in s.get("trail", [])]
+            if phase == "working" and s.get("tool"):
+                items.append((s["tool"]["name"], "now"))
+            if not items:
+                if phase == "thinking":
+                    self.buttons(p, 52, 90, [("brake", "Stop")])
+                return
+            f = font(11.5, QFont.Weight.Medium)
+            x = 52
+            for i, (name, state) in enumerate(items[-4:]):
+                if i:
+                    x = text(p, x + 5, 90, "›", f, color("faint")) + 5
+                label = tool_label(name) + (" ✓" if state == "done" else "")
+                x = text(p, x, 90, label, f, color("coral" if state == "now" else "muted"))
+            steps = s.get("steps", 0)
+            if phase == "done" and steps:
+                text(p, x + 12, 90, f"{steps} step{'s' if steps != 1 else ''}", f, color("faint"),
+                     W - 16 - x - 12)
+
+        def typing(self, p, s):
             t = s.get("type") or {}
             chars, idx = t.get("chars") or "?", t.get("idx", 0)
             showing = t.get("preview") is not None
-            box = QRectF(40, 32, 232, 82)
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(0, 0, 0, 70))
-            p.drawRoundedRect(box, 8, 8)
-            p.setFont(font(8.5, spacing=1.6))
-            p.setPen(color("accent"))
-            p.drawText(QPointF(box.left() + 9, box.top() + 13), f"TYPE · {t.get('set', '')}")
+            # The word so far, with the letter you're on boxed at the end.
+            x = text(p, 52, 67, t.get("word", ""), font(17, QFont.Weight.DemiBold), color("text"),
+                     180, Qt.TextElideMode.ElideLeft) + 2
+            box = QRectF(x, 49, 21, 25)
+            p.setPen(pen(color("coral"), 1.5))
+            p.setBrush(color("coral") if showing else color("coral", 0.12))
+            p.drawRoundedRect(box, 5, 5)
+            p.setFont(font(16, QFont.Weight.Bold))
+            p.setPen(QColor("#ffffff") if showing else color("coral"))
+            p.drawText(box, Qt.AlignmentFlag.AlignCenter, chars[idx % len(chars)])
 
-            cx, cy = box.center().x(), box.top() + 39
-            for k in (-3, -2, -1, 1, 2, 3):
+            # The letters either side, so you can see which way to turn the dial.
+            cx = W - 70
+            for k in (-2, -1, 0, 1, 2):
                 ch = chars[(idx + k) % len(chars)]
-                p.setFont(font(24 - 4 * abs(k), QFont.Weight.DemiBold))
-                p.setPen(color("text", (0.75, 0.45, 0.2)[abs(k) - 1]))
-                p.drawText(QRectF(cx + k * 31 - 15, cy - 18, 30, 36), Qt.AlignmentFlag.AlignCenter, ch)
-            letter = QRectF(cx - 18, cy - 23, 36, 46)
-            if showing:
-                glow(p, letter.center(), 30, color("accent"), 0.7)
-            p.setPen(pen(color("accent"), 2))
-            p.setBrush(color("accent") if showing else color("accent", 0.12))
-            p.drawRoundedRect(letter, 9, 9)
-            p.setFont(font(30, italic=True))
-            p.setPen(color("panel_bottom") if showing else color("accent"))
-            p.drawText(letter, Qt.AlignmentFlag.AlignCenter, chars[idx % len(chars)])
+                p.setFont(font(15 if k == 0 else 12.5, QFont.Weight.Bold if k == 0 else QFont.Weight.Medium))
+                p.setPen(color("coral") if k == 0 else color("muted", 0.8 if abs(k) == 1 else 0.4))
+                p.drawText(QRectF(cx + k * 17 - 8, 48, 16, 22), Qt.AlignmentFlag.AlignCenter, ch)
+            p.setPen(pen(color("coral", 0.7), 1.4))
+            p.drawLine(QPointF(cx - 5, 72), QPointF(cx + 5, 72))
+            f = font(10.5)
+            label = f"{t.get('set', '')} · dial"
+            text(p, cx - QFontMetricsF(f).horizontalAdvance(label) / 2, 86, label, f, color("faint"))
 
-            f = font(12, QFont.Weight.DemiBold)
-            p.setFont(f)
-            p.setPen(color("text", 0.9))
-            word = QFontMetricsF(f).elidedText(t.get("word", "") + "▏", Qt.TextElideMode.ElideLeft, 200)
-            p.drawText(QRectF(box.left(), box.bottom() - 17, box.width(), 14), Qt.AlignmentFlag.AlignCenter, word)
-
-        def pedal_bars(self, p):
-            for i, name in enumerate(("clutch", "brake", "gas")):
-                x, top, h = 280 + i * 9, 34, 78
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(color("faint"))
-                p.drawRoundedRect(QRectF(x, top, 5, h), 2.5, 2.5)
-                amount = max(0.0, min(1.0, self.pedals[name]))
-                if amount > 0.02:
-                    p.setBrush(color(PEDAL_COLORS[name]))
-                    p.drawRoundedRect(QRectF(x, top + h * (1 - amount), 5, h * amount), 2.5, 2.5)
-
-        def dial(self, p, s, live):
-            """The corner dial: a rim that turns with your wheel, gear in the middle,
-            effort as a tach arc around it."""
-            cx, cy, r = 368, 70, 44
-            now = time.time()
-            claude = s.get("claude") if live else None
-            if claude == "attention":
-                glow(p, QPointF(cx, cy), r + 22, color("red"), 0.6 + 0.4 * math.sin(now * 8))
-            elif live and s.get("done_at") and now - s["done_at"] < DONE_FOR:
-                glow(p, QPointF(cx, cy), r + 22, color("green"), 1 - (now - s["done_at"]) / DONE_FOR)
-
-            # Effort, as a tachometer arc with a red zone at the top end.
-            levels = s.get("effort_levels") or []
-            if s.get("effort") in levels:
-                level, n = levels.index(s["effort"]), len(levels)
-                span, gap = 240 / n, 5
-                for i in range(n):
-                    start = 210 - i * span - gap / 2
-                    on = i <= level
-                    c = color("red" if i == n - 1 else "accent") if on else color("faint")
-                    p.setPen(pen(c, 3.5, Qt.PenCapStyle.FlatCap))
-                    p.drawArc(QRectF(cx - r - 9, cy - r - 9, 2 * (r + 9), 2 * (r + 9)),
-                              round(start * 16), round(-(span - gap) * 16))
-
-            # The rim turns with the real wheel.
-            p.save()
-            p.translate(cx, cy)
-            p.rotate(self.steer)
-            g = QLinearGradient(0, -r, 0, r)
-            g.setColorAt(0, QColor("#4a525e"))
-            g.setColorAt(1, QColor("#1c2128"))
-            p.setPen(QPen(g, 8))
-            p.setBrush(QColor(0, 0, 0, 90))
-            p.drawEllipse(QPointF(0, 0), r - 4, r - 4)
-            p.setPen(pen(QColor("#3a414c"), 4))
-            for side in (-1, 1):
-                p.drawLine(QPointF(side * (r - 8), 0), QPointF(side * (r - 15), 0))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(color("accent"))
-            p.drawRoundedRect(QRectF(-3, -r - 1, 6, 10), 2, 2)
-            p.restore()
-
-            gear = s.get("gear")
-            p.setFont(font(44, italic=True))
-            p.setPen(color("accent") if gear else color("dim", 0.35))
-            p.drawText(QRectF(cx - 30, cy - 30, 60, 56), Qt.AlignmentFlag.AlignCenter, gear or "N")
-            if s.get("effort"):
-                p.setFont(font(8.5, spacing=1.2))
-                p.setPen(color("dim"))
-                p.drawText(QRectF(cx - 30, cy + 18, 60, 12), Qt.AlignmentFlag.AlignCenter, s["effort"].upper())
-
-            f = font(15, italic=True, spacing=0.6)
-            p.setFont(f)
-            p.setPen(color("text"))
-            name = QFontMetricsF(f).elidedText(model_name(s.get("model")), Qt.TextElideMode.ElideRight, 120)
-            p.drawText(QRectF(cx - 62, H - 30, 124, 20), Qt.AlignmentFlag.AlignCenter, name)
+            self.buttons(p, 52, 94, [("cross", "Space"), ("circle", "Delete")])
 
         def footer(self, p, s):
-            now = time.time()
-            if not s.get("daemon"):
-                text, col = "NO DAEMON", "dim"
-            elif not s.get("connected"):
-                text, col = "WHEEL OFF", "dim"
-            elif not s.get("armed"):
-                text, col = "DISARMED · PRESS PS", "dim"
-            elif s.get("claude") == "attention":
-                text, col = "NEEDS YOU", "red"
-            elif s.get("claude") == "busy":
-                text, col = "WORKING  " + clock(now - (s.get("busy_since") or now)), "amber"
-            elif s.get("done_at") and now - s["done_at"] < DONE_FOR:
-                took = f"  {clock(self.last_turn)}" if self.last_turn else ""
-                text, col = "DONE" + took, "green"
-            else:
-                text, col = "READY", "dim"
-            x, y = 44, H - 15
-            if col != "dim":
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(color(col))
-                p.drawEllipse(QPointF(x + 3, y - 4), 3, 3)
-                x += 12
-            f = font(11, spacing=1.4, tabular=True)
-            p.setFont(f)
-            p.setPen(color(col))
-            p.drawText(QPointF(x, y), text)
-            x += QFontMetricsF(f).horizontalAdvance(text) + 14
+            p.setPen(pen(color("line"), 1))
+            p.drawLine(QPointF(16, 106), QPointF(W - 16, 106))
+            y = 128
+            # Gear badge, which pops when you shift.
+            gear = s.get("gear")
+            pop = max(0.0, 1 - (time.monotonic() - self.gear_changed) / 0.3)
+            size = 24 * (1 + 0.25 * pop)
+            badge = QRectF(28 - size / 2, 119 - size / 2, size, size)
+            p.setPen(Qt.PenStyle.NoPen if gear else pen(color("faint"), 1.2))
+            p.setBrush(color("coral") if gear else Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(badge, 7, 7)
+            p.setFont(font(13, QFont.Weight.Bold))
+            p.setPen(QColor("#ffffff") if gear else color("faint"))
+            p.drawText(badge, Qt.AlignmentFlag.AlignCenter, gear or "N")
 
-            n = s.get("notice")
-            if n and s.get("mode") != "type" and now - n.get("at", 0) < NOTICE_FOR:
-                age = now - n["at"]
-                p.save()
-                p.setOpacity(p.opacity() * min(1.0, (NOTICE_FOR - age) / 0.6))
-                f = font(11, QFont.Weight.DemiBold)
-                p.setFont(f)
-                p.setPen(color("red" if n["title"].startswith("Grind") else "text", 0.85))
-                body = f"  ·  {n['body']}" if n.get("body") else ""
-                text = QFontMetricsF(f).elidedText(n["title"] + body, Qt.TextElideMode.ElideRight, max(0, 300 - x))
-                p.drawText(QPointF(x, y), text)
-                p.restore()
+            x = text(p, 50, y - 4, model_name(s.get("model")), font(13.5, QFont.Weight.DemiBold),
+                     color("text"), 120)
+            levels = s.get("effort_levels") or []
+            if s.get("effort") in levels:
+                level = levels.index(s["effort"])
+                x += 10
+                for i in range(len(levels)):   # effort as rising bars, like signal strength
+                    h = 5 + i * 2.2
+                    p.setPen(Qt.PenStyle.NoPen)
+                    p.setBrush(color("coral") if i <= level else color("line"))
+                    p.drawRoundedRect(QRectF(x + i * 6, y - 4 - h, 4, h), 1.5, 1.5)
+                text(p, x + len(levels) * 6 + 5, y - 4, s["effort"], font(11.5), color("muted"))
+
+            # Mode on the right, then a little wheel that turns with yours.
+            if not s.get("daemon"):
+                mode, c = "Offline", "faint"
+            elif not s.get("connected"):
+                mode, c = "Wheel off", "faint"
+            elif not s.get("armed"):
+                mode, c = "Disarmed", "amber"
+            else:
+                mode, c = ("Type", "coral") if s.get("mode") == "type" else ("Drive", "muted")
+            f = font(11.5, QFont.Weight.DemiBold)
+            w = QFontMetricsF(f).horizontalAdvance(mode) + 16
+            chip = QRectF(W - 16 - 22 - 10 - w, y - 19, w, 20)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(color("chip"))
+            p.drawRoundedRect(chip, 10, 10)
+            text(p, chip.left() + 8, y - 5, mode, f, color(c))
+
+            p.save()
+            p.translate(W - 16 - 11, y - 9)
+            p.rotate(self.steer)
+            rim = color("muted" if s.get("armed") else "faint")
+            p.setPen(pen(rim, 2.2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(QPointF(0, 0), 9.5, 9.5)
+            p.setPen(pen(rim, 1.8))
+            for a in (180, 0, 90):
+                r = math.radians(a)
+                p.drawLine(QPointF(math.cos(r) * 2.5, math.sin(r) * 2.5),
+                           QPointF(math.cos(r) * 9, math.sin(r) * 9))
+            p.setPen(pen(color("coral"), 2.4))
+            p.drawLine(QPointF(0, -9.5), QPointF(0, -7))
+            p.restore()
 
     def place(widget):
         screens = QGuiApplication.screens()
         want = hud_cfg.get("screen", "primary")
         screen = next((sc for sc in screens if sc.name() == want), None) or QGuiApplication.primaryScreen()
         geo = screen.availableGeometry()
-        m = hud_cfg.get("margin", 24)
+        m = hud_cfg.get("margin", 24) - PAD   # the shadow sits inside the margin
         corner = hud_cfg.get("corner", "bottom-right")
         x = geo.left() + m if "left" in corner else geo.right() - widget.width() - m + 1
         y = geo.top() + m if "top" in corner else geo.bottom() - widget.height() - m + 1
@@ -513,15 +578,13 @@ def build(args, cfg):
 
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("g923-hud")
-    for ttf in sorted(FONT_DIR.glob("*.ttf")):
-        QFontDatabase.addApplicationFont(str(ttf))
-    hud = Hud(hud_cfg.get("scale", 1.0), hud_cfg.get("opacity", 0.94))
+    hud = Hud(hud_cfg.get("scale", 1.0), hud_cfg.get("opacity", 0.96))
 
     if args.screenshot:
-        for k in range(hud.trace.maxlen, 0, -1):   # fill the trace with the seconds before
-            hud.sample(demo_state(args.at - k / 30))
         hud.set_state(demo_state(args.at))
-        hud.steer, hud.pedals = hud.state["steer_deg"], dict(hud.state["pedals"])
+        hud.last_turn = 9.5   # the demo's turn, from prompt to done
+        hud.gear_changed = 0.0
+        hud.steer = hud.state["steer_deg"]
         hud.grab().save(args.screenshot)
         return None, hud
     if args.demo:
