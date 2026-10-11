@@ -113,6 +113,18 @@ class Typer:
             self._erase(1)
             self.word = self.word[:-1]
 
+    def backspace_word(self):
+        """Delete the whole word before the cursor (Ctrl+W) and forget it."""
+        if self.suggestion:
+            self._erase(len(self.suggestion[2]))
+            self.suggestion = None
+        elif self.preview is not None:
+            self._erase(1)
+            self.preview = None
+        else:
+            self.out.press("ctrl+w")
+            self.word = ""
+
     # --- word suggestions -----------------------------------------------
 
     def next_suggestion(self):

@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from collections import Counter
 
@@ -8,7 +9,7 @@ from g923.daemon import Daemon
 
 REPO_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
 from g923.typing import WordModel
-from tests.test_drive import Recorder, SilentFeedback, axis, tap
+from tests.test_drive import Recorder, SilentFeedback, axis, key, tap
 
 
 class FixedModel(WordModel):
@@ -48,6 +49,29 @@ def dpad(d, direction):
 
 DIAL_CW, DIAL_CCW, DIAL_ENTER = 709, 710, 711
 CROSS, CIRCLE, SQUARE, TRIANGLE = 288, 290, 289, 291
+
+
+def fast_backspace(d, after=0.05, rate=0.05, word_after=1.0, word_rate=0.05):
+    """Shrink the hold timings so the repeat tests run quickly."""
+    t = d.cfg["type"]
+    t["backspace_repeat_after_s"] = after
+    t["backspace_repeat_rate_s"] = rate
+    t["backspace_word_after_s"] = word_after
+    t["backspace_word_rate_s"] = word_rate
+
+
+def hold(d, code, seconds):
+    """Press a button, keep it down for `seconds`, then release it."""
+    async def go():
+        key(d, code, True)
+        await asyncio.sleep(seconds)
+        key(d, code, False)
+        await asyncio.sleep(0.02)  # let the cancelled repeat task wind down
+    asyncio.run(go())
+
+
+def sent(d, combo):
+    return d.out.log.count(("key", combo))
 
 
 class TypeModeTest(unittest.TestCase):
@@ -136,6 +160,94 @@ class TypeModeTest(unittest.TestCase):
         tap(d, SQUARE)
         tap(d, CIRCLE)
         self.assertEqual(screen(d.out.log), "re")
+
+    def test_held_backspace_repeats(self):
+        d = make()
+        fast_backspace(d)
+        for _ in range(4):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)   # aaaa
+        hold(d, CIRCLE, 0.3)
+        self.assertGreaterEqual(sent(d, "backspace"), 3)  # one on press + repeats
+        self.assertEqual(screen(d.out.log), "")
+        self.assertEqual(sent(d, "ctrl+w"), 0)  # word timeout not reached
+
+    def test_backspace_stops_when_released(self):
+        d = make()
+        fast_backspace(d)
+        for _ in range(4):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)
+        hold(d, CIRCLE, 0.3)
+        sent_so_far = sent(d, "backspace")
+
+        async def idle():
+            await asyncio.sleep(0.2)
+
+        asyncio.run(idle())
+        self.assertEqual(sent(d, "backspace"), sent_so_far)
+
+    def test_other_type_buttons_stop_the_repeat(self):
+        d = make()
+        fast_backspace(d)
+        for _ in range(3):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)   # aaa
+
+        async def go():
+            key(d, CIRCLE, True)
+            await asyncio.sleep(0.03)             # first delete, no repeat yet
+            tap(d, DIAL_CW)                       # preview a while ○ is still down
+            await asyncio.sleep(0.2)
+            key(d, CIRCLE, False)
+            await asyncio.sleep(0.02)
+
+        asyncio.run(go())
+        self.assertEqual(screen(d.out.log), "aaa")  # two kept, plus the new preview
+        self.assertEqual(d.typer.preview, "a")
+
+    def test_hold_switches_to_deleting_words(self):
+        d = make()
+        fast_backspace(d, word_after=0.15)
+        for _ in range(4):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)
+        hold(d, CIRCLE, 0.4)
+        self.assertGreater(sent(d, "ctrl+w"), 0)
+        # Character backspaces come first, Ctrl+W only after the timeout.
+        self.assertLess(d.out.log.index(("key", "backspace")),
+                        d.out.log.index(("key", "ctrl+w")))
+        self.assertEqual(d.typer.word, "")
+
+    def test_word_deletes_repeat_at_their_own_rate(self):
+        d = make()
+        fast_backspace(d, rate=0.02, word_after=0.1, word_rate=0.3)
+        for _ in range(4):
+            tap(d, DIAL_CW); tap(d, DIAL_ENTER)
+        hold(d, CIRCLE, 0.5)
+        # About 0.4 s of word mode at one per 0.3 s: two at most, not twenty.
+        self.assertIn(sent(d, "ctrl+w"), (1, 2))
+
+    def test_backspace_word_deletes_the_whole_word(self):
+        d = make()
+        tap(d, DIAL_CW); tap(d, DIAL_ENTER)   # commit a
+        self.assertEqual(d.typer.word, "a")
+        d.typer.backspace_word()
+        self.assertEqual(d.out.log, [("type", "a"), ("key", "ctrl+w")])
+        self.assertEqual(d.typer.word, "")
+
+    def test_backspace_word_clears_a_previewed_character(self):
+        d = make()
+        dpad(d, "right")                      # preview a
+        d.typer.backspace_word()
+        self.assertEqual(screen(d.out.log), "")
+        self.assertIsNone(d.typer.preview)
+        self.assertEqual(sent(d, "ctrl+w"), 0)
+
+    def test_backspace_word_clears_a_suggestion(self):
+        d = make()
+        self.type_re(d)
+        tap(d, SQUARE)                        # "factor" showing
+        d.typer.backspace_word()
+        self.assertEqual(screen(d.out.log), "re")
+        self.assertIsNone(d.typer.suggestion)
+        self.assertEqual(sent(d, "ctrl+w"), 0)
 
     def test_gas_still_submits(self):
         d = make()
