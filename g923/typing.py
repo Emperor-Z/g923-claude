@@ -101,6 +101,7 @@ class Typer:
         self.word = ""         # committed characters of the current word
         self.prev = None       # the word before this one, for next-word suggestions
         self.page = 0          # which three suggestions are on offer (□ shows more)
+        self.menu = False      # after "/" or "@": Claude's command or file menu is open
 
     @property
     def charset(self):
@@ -130,6 +131,8 @@ class Typer:
             return
         ch, self.preview = self.preview, None
         self.page = 0
+        if ch in "/@" and not self.word:
+            self.menu = True   # no word suggestions until the menu's done with
         if is_word_char(ch):
             self.word += ch
         else:
@@ -149,6 +152,7 @@ class Typer:
             self.prev = self.word.lower()
         self.word = ""
         self.page = 0
+        self.menu = False
 
     def backspace(self):
         self.page = 0
@@ -159,6 +163,7 @@ class Typer:
             self._erase(1)
             if not self.word:
                 self.prev = None   # deleted past the word we knew about
+                self.menu = False
             self.word = self.word[:-1]
 
     def backspace_word(self):
@@ -184,7 +189,7 @@ class Typer:
     def suggestions(self):
         """The three on offer, as {left, center, right}; the best is in the middle."""
         prefix = self.prefix()
-        if prefix is None:
+        if prefix is None or self.menu:
             return dict.fromkeys(SLOTS)
         found = self.model.suggest(prefix, 9, prev=self.prev)
         page = found[self.page * 3:self.page * 3 + 3] or found[:3]
@@ -223,6 +228,7 @@ class Typer:
         self.word = ""
         self.prev = None
         self.page = 0
+        self.menu = False
 
     def _show(self, ch):
         self.out.type(ch)

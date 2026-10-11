@@ -293,8 +293,24 @@ class TypeModeTest(unittest.TestCase):
 
     def test_paddles_pick_suggestions_in_type_mode(self):
         d = make()
+        self.type_re(d)
         tap(d, PADDLE_RIGHT)
         self.assertNotIn(("key", "down"), d.out.log)
+
+    def test_paddles_are_arrows_in_a_slash_menu(self):
+        d = make()
+        tap(d, DIAL_CW)
+        dpad(d, "up")                         # symbols set, starting at "/"
+        tap(d, DIAL_ENTER)                    # "/" opens Claude's command menu
+        dpad(d, "down")                       # back to abc, "a" showing
+        for _ in range(d.typer.sets[0].index("r")):
+            tap(d, DIAL_CW)                   # "r" showing: would suggest "refactor"...
+        self.assertEqual(d.typer.prefix(), "r")
+        self.assertIsNone(d.typer.suggestions()["center"])   # ...but not inside the menu
+        tap(d, PADDLE_RIGHT)
+        self.assertEqual(d.out.log[-1], ("key", "down"))
+        tap(d, CROSS)                         # a space closes the menu again
+        self.assertFalse(d.typer.menu)
 
     def test_share_returns_to_drive(self):
         d = make()

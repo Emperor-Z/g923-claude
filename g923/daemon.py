@@ -190,6 +190,12 @@ class Daemon:
 
     def type_button(self, name):
         t = self.typer
+        action = self.cfg["type_keys"][name]
+        slot = {"pick_left": "left", "pick_right": "right"}.get(action)
+        if slot and not t.suggestions()[slot]:
+            # Nothing to pick: the paddle does its Drive job (arrows for menus and history).
+            self.drive_button(name, True)
+            return
         actions = {
             "prev": lambda: t.step(-1), "next": lambda: t.step(1),
             "set_prev": lambda: t.change_set(-1), "set_next": lambda: t.change_set(1),
@@ -199,7 +205,7 @@ class Daemon:
             # names from before the suggestion bar, so older configs keep working
             "suggest": t.more, "accept": lambda: t.pick("center"),
         }
-        actions[self.cfg["type_keys"][name]]()
+        actions[action]()
 
     def hold_backspace(self, down):
         # One delete per press; holding it repeats like a keyboard key.
