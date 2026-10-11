@@ -133,6 +133,15 @@ notify = true
 sound = true
 attention_repeat_s = 3
 
+[hud]
+# The floating dashboard: run g923-hud (needs: pipx install 'g923-claude[hud]').
+screen = "primary"        # or an output name such as "eDP-1" or "HDMI-1"
+corner = "bottom-left"    # bottom-left, bottom-right, top-left or top-right
+margin = 24               # pixels from the screen edges
+scale = 1.0               # 1.5 or 2 for high-DPI screens
+opacity = 0.92
+claude_settings = "~/.claude/settings.json"  # read once for the starting model and effort
+
 [ffb]
 # Needs a driver that exposes force feedback (new-lg4ff for the PS G923).
 enabled = true

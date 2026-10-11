@@ -1,0 +1,12 @@
+[Unit]
+Description=g923-claude: floating HUD
+PartOf=graphical-session.target
+After=graphical-session.target g923d.service
+
+[Service]
+ExecStart=@REPO@/bin/g923-hud
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target
