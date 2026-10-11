@@ -176,6 +176,8 @@ cd g923-claude
 
 `./uninstall.sh` stops the service and removes only the g923 hooks.
 
+**Upgrading:** after `git pull`, run `./install.sh` again (with `--hud` if you use the HUD). It updates the hooks and restarts the services. With pipx: `pipx upgrade g923-claude`, then `g923-hooks`.
+
 **From PyPI:**
 
 ```bash
