@@ -139,7 +139,7 @@
   <!-- PS callout -->
   <path d="M600 413 V575" class="ln"/>
   <circle cx="600" cy="413" r="3" class="dot"/>
-  <text x="600" y="597" class="lbl" text-anchor="middle">PS: arm / disarm</text>
+  <text x="600" y="597" class="lbl" text-anchor="middle">PS: arm / disarm · hold: HUD</text>
 
   <!-- divider -->
   <path d="M40 625 H1160" stroke="#21262d" stroke-width="2"/>
