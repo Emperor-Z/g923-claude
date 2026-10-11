@@ -102,21 +102,21 @@ Press **Options** to type with the wheel; **Share** returns to Drive mode. The c
 | Dial Enter | Commit the character |
 | ✕ | Space |
 | ○ | Backspace (hold to repeat) |
-| □ | Next suggested word |
-| △ | Accept suggested word |
+| Left paddle / △ / Right paddle | Type the left / middle (best) / right suggested word |
+| □ | Three more suggestions |
 | Gas / Brake | Still Enter / Esc |
 
 Letters run **a to z** and wrap around, so spin anticlockwise to reach the end of the alphabet fast (`z` is one click back from `a`). The dial keeps its position between characters, so the first press after a commit re-shows the same letter: double letters are one press plus Enter.
 
-**What you see is what you get.** A previewed character or suggested word that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
+**What you see is what you get.** A previewed character that's visible in the prompt stays there unless you press ○ to remove it, so ✕, Gas or moving on all keep it.
 
 **Holding ○ clears faster.** One press is one character; hold it for 0.4 s and backspace repeats like a keyboard key, and after 1.5 s of holding it deletes whole words (`Ctrl+W`) instead. Word deletes repeat more slowly (every 0.3 s) so you can let go in time. The timings live in `[type]` as `backspace_repeat_after_s`, `backspace_repeat_rate_s`, `backspace_word_after_s` and `backspace_word_rate_s`.
 
-**Word suggestions.** After two committed letters, a notification shows the top three guesses. □ types the first one inline, and pressing □ again swaps it for the next; △ accepts it and adds a space (if nothing is showing, △ inserts the top guess directly). Guesses come from a built-in list (`g923/words.txt`) blended with words from your own past Claude Code prompts (`~/.claude/history.jsonl`), which are read locally at startup and never written anywhere.
+**Word suggestions, like a phone keyboard.** Three words are always on offer: endings for the word you're typing (the letter you're scrolling over counts, so landing on `r` already offers *refactor*), or, once a word is done, the word most likely to come next. Pick with the left paddle, △ (the best guess, in the middle) or the right paddle; the word and a space are typed for you, and the next three appear, so tapping △ a few times can finish a whole phrase like *fix the failing tests*. □ shows three more. The [HUD](#floating-hud) shows them as a suggestion bar; without it, they pop up as a notification. Suggestions learn which words follow which from your past Claude Code prompts (`~/.claude/history.jsonl`, read locally at startup and never written anywhere), on top of a built-in word list and some common phrases (`g923/words.txt`, `g923/phrases.txt`).
 
 Tips:
-- `/` (top of the symbols set) opens Claude Code's command menu and `@` opens the file picker; drive those menus with the paddles and Gas.
-- Paddles, pedals, gears and the other buttons keep their Drive mode actions while you type.
+- `/` (top of the symbols set) opens Claude Code's command menu and `@` opens the file picker. There, and whenever there's no word to pick, the paddles are ↑/↓ again, so drive those menus with the paddles and Gas.
+- Pedals, gears and the other buttons keep their Drive mode actions while you type.
 - For long prompts, hold L3 for voice dictation instead.
 
 ## Floating HUD
