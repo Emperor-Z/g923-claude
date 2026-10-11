@@ -38,6 +38,6 @@ systemctl --user restart g923d.service
 if $hud; then
   systemctl --user enable g923-hud.service
   systemctl --user restart g923-hud.service
-  echo "HUD running in the bottom-right corner (move it with [hud] corner in your config)."
+  echo "HUD running in the bottom-right corner: drag it anywhere, hold PS to hide or show it."
 fi
 echo "g923d running. Focus your Claude Code terminal and press PS to arm."
