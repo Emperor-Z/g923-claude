@@ -86,7 +86,7 @@
   <g>
     <circle cx="392" cy="196" r="3" class="dot"/><path d="M392 196 H330" class="ln"/>
     <text x="320" y="191" class="lbl" text-anchor="end">Left paddle</text>
-    <text x="320" y="211" class="sub" text-anchor="end">↑ up</text>
+    <text x="320" y="211" class="sub" text-anchor="end">↑ up · Type: left word</text>
 
     <circle cx="429" cy="325" r="3" class="dot"/><path d="M429 325 H330" class="ln"/>
     <text x="320" y="320" class="lbl" text-anchor="end">D-pad</text>
@@ -109,15 +109,15 @@
   <g>
     <circle cx="808" cy="196" r="3" class="dot"/><path d="M808 196 H870" class="ln"/>
     <text x="880" y="191" class="lbl">Right paddle</text>
-    <text x="880" y="211" class="sub">↓ down</text>
+    <text x="880" y="211" class="sub">↓ down · Type: right word</text>
 
     <circle cx="757" cy="301" r="3" class="dot"/><path d="M757 301 L790 262 H870" class="ln"/>
     <text x="880" y="257" class="lbl"><tspan style="fill:#4fd1c5">△</tspan> task list</text>
-    <text x="880" y="277" class="sub">Ctrl+T · Type: accept word</text>
+    <text x="880" y="277" class="sub">Ctrl+T · Type: best word</text>
 
     <circle cx="781" cy="325" r="3" class="dot"/><path d="M781 325 H870" class="ln"/>
     <text x="880" y="320" class="lbl"><tspan style="fill:#ff6b81">○</tspan> no / Esc · <tspan style="fill:#d6a2e8">□</tspan> always</text>
-    <text x="880" y="340" class="sub">Type: ○ backspace, □ suggest</text>
+    <text x="880" y="340" class="sub">Type: ○ backspace, □ more words</text>
 
     <circle cx="757" cy="349" r="3" class="dot"/><path d="M757 349 L790 385 H870" class="ln"/>
     <text x="880" y="380" class="lbl"><tspan style="fill:#7aa7ff">✕</tspan> yes / Enter</text>

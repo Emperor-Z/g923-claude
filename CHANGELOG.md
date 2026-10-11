@@ -8,9 +8,11 @@ All notable changes to this project are documented here. The format follows [Kee
 - Type mode: holding ○ repeats backspace like a keyboard key, then switches to deleting whole words (`Ctrl+W`); timings configurable in `[type]`
 - `g923-hud`: a floating HUD that's half agent status, half racing dash. It says what Claude is doing ("Editing hud.py"), with the task, its steps and a timer; F1-style rev lights show Claude's status; approvals show the wheel buttons that answer them; and a dial turns with your wheel showing gear, model and effort, next to live pedal bars and the Type mode letter picker. Optional install: `pip install 'g923-claude[hud]'` or `./install.sh --hud`
 - A `PreToolUse` hook, and the hooks now pass along the prompt, tool and command so the HUD can show them (only over the local socket)
+- Type mode suggestions work like a phone keyboard: three words on offer at all times, picked with the left paddle, △ or the right paddle (□ for more), including next-word prediction learned from your past prompts
 - The daemon streams its live state to anything that sends `watch` on its socket
 
 ### Changed
+- Type mode: □ now shows more suggestions and △ types the best one; the inline suggestion cycling is gone. In Type mode the paddles pick words, except in `/` and `@` menus
 - The starting model and effort level come from Claude Code's `~/.claude/settings.json` when set, so +/− step from your real effort level
 
 ## [0.5.1] - 2026-10-08

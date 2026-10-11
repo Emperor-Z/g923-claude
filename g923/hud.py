@@ -152,8 +152,12 @@ def demo_state(t):
         word = "refactor"[: int((t - 17) * 1.4)]
         nxt = "refactor"[len(word) % 8]
         s["mode"] = "type"
-        s["type"].update(word=word, idx=s["type"]["chars"].index(nxt),
-                         preview=nxt if int(t * 3) % 2 else None)
+        preview = nxt if int(t * 3) % 2 else None
+        typed = word + (preview or "")
+        words = [w for w in ("refactor", "readme", "reference", "repo", "refresh") if w.startswith(typed)]
+        words += [None] * 3
+        s["type"].update(word=word, idx=s["type"]["chars"].index(nxt), preview=preview,
+                         suggestions={"left": words[1], "center": words[0], "right": words[2]})
     return s
 
 
@@ -463,7 +467,7 @@ def build(args, cfg):
             p.drawRoundedRect(box, 6, 6)
             text(p, x + 8, y + 15, cmd, f, color("text"))
 
-        def buttons(self, p, x, y, items):
+        def buttons(self, p, x, y, items, size=12):
             """Wheel button hints: a coloured glyph (or a pedal's name), then what it does."""
             for key, label in items:
                 if key in ("cross", "circle", "square"):
@@ -486,7 +490,7 @@ def build(args, cfg):
                     p.drawRoundedRect(QRectF(x, y - 13, w, 17), 5, 5)
                     text(p, x + 5, y - 1.5, key.upper(), f, color("muted"))
                     x += w + 6
-                x = text(p, x, y, label, font(12, QFont.Weight.Medium), color("text"), TEXT_RIGHT - x) + 16
+                x = text(p, x, y, label, font(size, QFont.Weight.Medium), color("text"), TEXT_RIGHT - x) + size * 1.3 - 1
 
         def trail(self, p, s, phase):
             """The last few steps, like breadcrumbs: Read ✓ › Grep ✓ › Bash."""
@@ -533,11 +537,25 @@ def build(args, cfg):
                 p.drawText(QRectF(cx + k * 17 - 8, 58, 16, 22), Qt.AlignmentFlag.AlignCenter, ch)
             p.setPen(pen(color("coral", 0.7), 1.4))
             p.drawLine(QPointF(cx - 5, 82), QPointF(cx + 5, 82))
-            f = font(10.5)
-            label = f"{t.get('set', '')} · dial"
-            text(p, cx - QFontMetricsF(f).horizontalAdvance(label) / 2, 96, label, f, color("faint"))
+            self.suggestion_bar(p, t.get("suggestions") or {})
 
-            self.buttons(p, TEXT_X, 103, [("cross", "Space"), ("circle", "Delete")])
+        def suggestion_bar(self, p, sugg):
+            """Three words, like a phone keyboard: left paddle, △ and right paddle
+            pick them, with the best guess in the middle."""
+            gap = 5
+            w = (TEXT_RIGHT - TEXT_X - 2 * gap) / 3
+            for i, (slot, key) in enumerate((("left", "L"), ("center", "△"), ("right", "R"))):
+                word = sugg.get(slot)
+                box = QRectF(TEXT_X + i * (w + gap), 88, w, 21)
+                best = slot == "center" and word
+                p.setPen(pen(color("coral", 0.8), 1.2) if best else Qt.PenStyle.NoPen)
+                p.setBrush(color("coral", 0.14) if best else color("chip"))
+                p.drawRoundedRect(box, 7, 7)
+                text(p, box.left() + 7, box.top() + 14.5, key, font(9.5, QFont.Weight.Bold),
+                     color("triangle" if key == "△" else "faint"))
+                if word:
+                    text(p, box.left() + 21, box.top() + 15, word, font(12, QFont.Weight.DemiBold),
+                         color("text" if best else "muted"), box.width() - 27)
 
         def footer(self, p, s):
             p.setPen(pen(color("line"), 1))
@@ -549,8 +567,10 @@ def build(args, cfg):
                 mode, c = "Wheel off", "faint"
             elif not s.get("armed"):
                 mode, c = "Disarmed · PS", "amber"
+            elif s.get("mode") == "type":
+                mode, c = f"Type · {(s.get('type') or {}).get('set', 'abc')}", "coral"
             else:
-                mode, c = ("Type mode", "coral") if s.get("mode") == "type" else ("Drive mode", "muted")
+                mode, c = "Drive mode", "muted"
             f = font(11.5, QFont.Weight.DemiBold)
             w = QFontMetricsF(f).horizontalAdvance(mode) + 16
             chip = QRectF(TEXT_X, y - 15, w, 20)
@@ -558,7 +578,10 @@ def build(args, cfg):
             p.setBrush(color("chip"))
             p.drawRoundedRect(chip, 10, 10)
             text(p, chip.left() + 8, y - 1, mode, f, color(c))
-            if s.get("session"):
+            if s.get("mode") == "type" and s.get("daemon"):
+                self.buttons(p, chip.right() + 10, y, [("cross", "space"), ("circle", "del"), ("square", "more")],
+                             size=11)
+            elif s.get("session"):
                 text(p, chip.right() + 10, y - 1, s["session"], font(11.5), color("faint"),
                      TEXT_RIGHT - chip.right() - 10)
 

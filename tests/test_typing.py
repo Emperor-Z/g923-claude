@@ -1,6 +1,9 @@
 import asyncio
+import json
+import os
+import tempfile
 import unittest
-from collections import Counter
+from collections import Counter, defaultdict
 
 from pathlib import Path
 
@@ -13,16 +16,18 @@ from tests.test_drive import Recorder, SilentFeedback, axis, key, tap
 
 
 class FixedModel(WordModel):
-    def __init__(self, words):
+    def __init__(self, words, follows=None):
         self.scores = Counter({w: len(words) - i for i, w in enumerate(words)})
+        self.follows = defaultdict(Counter, {a: Counter(b) for a, b in (follows or {}).items()})
+        self.starts = Counter()
 
 
-def make(words=("refactor", "readme", "repo")):
+def make(words=("refactor", "readme", "repo", "reply"), follows=None):
     from g923.typing import Typer
 
     cfg = config.load(REPO_CONFIG)
     out, fb = Recorder(), SilentFeedback()
-    d = Daemon(cfg, out, fb, typer=Typer(cfg, out, fb, FixedModel(list(words))))
+    d = Daemon(cfg, out, fb, typer=Typer(cfg, out, fb, FixedModel(list(words), follows)))
     d.armed = True
     tap(d, 297)  # Options -> Type mode
     out.log.clear()
@@ -49,6 +54,7 @@ def dpad(d, direction):
 
 DIAL_CW, DIAL_CCW, DIAL_ENTER = 709, 710, 711
 CROSS, CIRCLE, SQUARE, TRIANGLE = 288, 290, 289, 291
+PADDLE_RIGHT, PADDLE_LEFT = 292, 293
 
 
 def fast_backspace(d, after=0.05, rate=0.05, word_after=1.0, word_rate=0.05):
@@ -137,29 +143,60 @@ class TypeModeTest(unittest.TestCase):
             tap(d, DIAL_CCW)
         tap(d, DIAL_ENTER)
 
-    def test_suggestions_cycle_and_accept(self):
+    def test_triangle_picks_the_best_word(self):
         d = make()
         self.type_re(d)
-        self.assertEqual(screen(d.out.log), "re")
-        tap(d, SQUARE)
-        self.assertEqual(screen(d.out.log), "refactor")
-        tap(d, SQUARE)
-        self.assertEqual(screen(d.out.log), "readme")
-        tap(d, TRIANGLE)
-        self.assertEqual(screen(d.out.log), "readme ")
-
-    def test_triangle_without_visible_suggestion_inserts_top(self):
-        d = make()
-        self.type_re(d)
+        self.assertEqual(d.typer.suggestions(), {"left": "readme", "center": "refactor", "right": "repo"})
         tap(d, TRIANGLE)
         self.assertEqual(screen(d.out.log), "refactor ")
 
-    def test_backspace_removes_suggestion(self):
+    def test_paddles_pick_the_side_words(self):
+        d = make()
+        self.type_re(d)
+        tap(d, PADDLE_LEFT)
+        self.assertEqual(screen(d.out.log), "readme ")
+        d = make()
+        self.type_re(d)
+        tap(d, PADDLE_RIGHT)
+        self.assertEqual(screen(d.out.log), "repo ")
+
+    def test_square_offers_three_more(self):
         d = make()
         self.type_re(d)
         tap(d, SQUARE)
-        tap(d, CIRCLE)
-        self.assertEqual(screen(d.out.log), "re")
+        self.assertEqual(d.typer.suggestions()["center"], "reply")
+        tap(d, TRIANGLE)
+        self.assertEqual(screen(d.out.log), "reply ")
+
+    def test_the_letter_you_are_on_counts(self):
+        d = make()
+        for _ in range(d.typer.sets[0].index("r") + 1):
+            tap(d, DIAL_CW)                     # "r" showing, not committed
+        self.assertEqual(d.typer.suggestions()["center"], "refactor")
+        tap(d, TRIANGLE)
+        self.assertEqual(screen(d.out.log), "refactor ")
+
+    def test_next_word_after_a_pick(self):
+        d = make(words=["fix", "it"], follows={"fix": {"the": 5, "it": 2, "a": 1}})
+        tap(d, DIAL_CW)                         # preview "a"
+        tap(d, CIRCLE)                          # gone again
+        d.typer.prev = None
+        for _ in range(d.typer.sets[0].index("f") + 1):
+            tap(d, DIAL_CW)
+        tap(d, TRIANGLE)                        # "fix "
+        self.assertEqual(d.typer.suggestions(), {"left": "it", "center": "the", "right": "a"})
+        tap(d, TRIANGLE)
+        self.assertEqual(screen(d.out.log), "fix the ")
+
+    def test_no_suggestions_after_punctuation(self):
+        d = make()
+        tap(d, 709)
+        dpad(d, "down"); dpad(d, "down"); dpad(d, "down")   # symbols set
+        self.assertIsNone(d.typer.prefix())
+        self.assertEqual(d.typer.suggestions(), {"left": None, "center": None, "right": None})
+        before = list(d.out.log)
+        tap(d, TRIANGLE)
+        self.assertEqual(d.out.log, before)   # nothing typed
 
     def test_held_backspace_repeats(self):
         d = make()
@@ -240,14 +277,11 @@ class TypeModeTest(unittest.TestCase):
         self.assertIsNone(d.typer.preview)
         self.assertEqual(sent(d, "ctrl+w"), 0)
 
-    def test_backspace_word_clears_a_suggestion(self):
-        d = make()
-        self.type_re(d)
-        tap(d, SQUARE)                        # "factor" showing
+    def test_backspace_word_forgets_the_context(self):
+        d = make(follows={"fix": {"the": 1}})
+        d.typer.prev = "fix"
         d.typer.backspace_word()
-        self.assertEqual(screen(d.out.log), "re")
-        self.assertIsNone(d.typer.suggestion)
-        self.assertEqual(sent(d, "ctrl+w"), 0)
+        self.assertIsNone(d.typer.prev)
 
     def test_gas_still_submits(self):
         d = make()
@@ -257,10 +291,26 @@ class TypeModeTest(unittest.TestCase):
         self.assertEqual(d.out.log[-1], ("key", "enter"))
         self.assertEqual(screen(d.out.log), "a")
 
-    def test_paddles_fall_through_to_drive(self):
+    def test_paddles_pick_suggestions_in_type_mode(self):
         d = make()
-        tap(d, 292)
-        self.assertEqual(d.out.log, [("key", "down")])
+        self.type_re(d)
+        tap(d, PADDLE_RIGHT)
+        self.assertNotIn(("key", "down"), d.out.log)
+
+    def test_paddles_are_arrows_in_a_slash_menu(self):
+        d = make()
+        tap(d, DIAL_CW)
+        dpad(d, "up")                         # symbols set, starting at "/"
+        tap(d, DIAL_ENTER)                    # "/" opens Claude's command menu
+        dpad(d, "down")                       # back to abc, "a" showing
+        for _ in range(d.typer.sets[0].index("r")):
+            tap(d, DIAL_CW)                   # "r" showing: would suggest "refactor"...
+        self.assertEqual(d.typer.prefix(), "r")
+        self.assertIsNone(d.typer.suggestions()["center"])   # ...but not inside the menu
+        tap(d, PADDLE_RIGHT)
+        self.assertEqual(d.out.log[-1], ("key", "down"))
+        tap(d, CROSS)                         # a space closes the menu again
+        self.assertFalse(d.typer.menu)
 
     def test_share_returns_to_drive(self):
         d = make()
@@ -277,6 +327,28 @@ class WordModelTest(unittest.TestCase):
     def test_base_list_loads(self):
         m = WordModel()
         self.assertIn("commit", m.suggest("comm"))
+
+    def test_built_in_phrases_predict_the_next_word(self):
+        m = WordModel()
+        self.assertIn("the", m.suggest("", 3, prev="fix"))
+        self.assertIn("you", m.suggest("", 3, prev="can"))
+
+    def test_learns_from_history_but_skips_placeholders_and_commands(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "history.jsonl")
+            with open(path, "w") as f:
+                for text in ["deploy the staging server", "deploy the staging server",
+                             "[Pasted text #1 +40 lines] zebra", "/model opus"]:
+                    f.write(json.dumps({"display": text}) + "\n")
+            m = WordModel(path)
+        self.assertEqual(m.suggest("", 1, prev="the"), ["staging"])
+        self.assertNotIn("pasted", m.follows)
+        self.assertNotIn("opus", m.scores)
+
+    def test_context_beats_plain_frequency(self):
+        m = FixedModel(["readme", "refactor"], follows={"the": {"refactor": 1}})
+        self.assertEqual(m.suggest("re", 2, prev="the"), ["refactor", "readme"])
+        self.assertEqual(m.suggest("re", 2), ["readme", "refactor"])
 
 
 if __name__ == "__main__":
