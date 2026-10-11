@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 - The HUD can be dragged anywhere and remembers where; double-click snaps it back to its corner, and hovering shows a × to close it. `click_through = true` brings back the old pass-through behaviour
+- Hold PS for 1.5 s to hide or show the HUD, or to reopen it after closing it (`[hud] toggle_hold_s`)
+
+### Changed
+- A short PS press now arms or disarms when you let go, so a hold isn't mistaken for a press
 
 ## [0.6.0] - 2026-10-11
 

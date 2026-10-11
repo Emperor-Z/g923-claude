@@ -66,7 +66,7 @@ Want the [floating HUD](#floating-hud) too? Run `./install.sh --hud`.
 | L3 (hold) | `Space` (held) | Voice dictation, if enabled in Claude Code |
 | + / − | `/effort …` | Raise / lower reasoning effort |
 | Steering | mouse wheel | Scroll the output |
-| PS | — | Arm / disarm the whole thing |
+| PS | — | Arm / disarm the whole thing (hold 1.5 s: hide or show the [HUD](#floating-hud)) |
 | Share / Options | — | Switch to Drive / Type mode |
 
 ### Shifter = model
@@ -131,7 +131,7 @@ A card that floats in the bottom-right corner of your screen: half agent status,
 - **A racing dial:** its rim turns with your real wheel. The gear sits in the middle, `/effort` is the tach arc around it (max is the red zone), and the model is underneath. Live clutch, brake and gas bars sit beside it.
 - **Type mode:** your word, the letter you're on, and its neighbours on the dial.
 
-**Drag it anywhere** and it remembers where; double-click to snap it back to its corner. Hover over it for a **×** that closes it (`systemctl --user start g923-hud` brings it back). It never takes keyboard focus, so the wheel keeps typing into Claude even while you move it. Prefer clicks to pass straight through it? Set `click_through = true`.
+**Drag it anywhere** and it remembers where; double-click to snap it back to its corner. Hover over it for a **×** that closes it. **Hold PS on the wheel for 1.5 s** to hide or show it, or to bring it back after closing it. It never takes keyboard focus, so the wheel keeps typing into Claude even while you move it. Prefer clicks to pass straight through it? Set `click_through = true`.
 
 ```bash
 ./install.sh --hud                  # from a clone: adds Qt and starts it as a user service

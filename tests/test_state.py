@@ -150,5 +150,60 @@ class WatchTest(unittest.TestCase):
         self.assertEqual(watchers, 0)  # a closed HUD is forgotten
 
 
+PS = 712
+
+
+def with_launcher(d):
+    """Stub out starting the HUD; returns the list each launch is recorded in."""
+    launched = []
+    d.launch_hud = lambda: launched.append(True)
+    return launched
+
+
+class HudToggleTest(unittest.TestCase):
+    def test_a_short_press_still_arms(self):
+        d = make(armed=False)
+        launched = with_launcher(d)
+        tap(d, PS)
+        self.assertTrue(d.armed)
+        self.assertEqual(launched, [])
+
+    def test_holding_ps_opens_a_closed_hud_without_disarming(self):
+        d = make()
+        launched = with_launcher(d)
+        key(d, PS, True)
+        d.ps_down_at -= 2           # as if held for 2 s (no event loop here)
+        key(d, PS, False)
+        self.assertEqual(launched, [True])
+        self.assertTrue(d.armed)
+
+    def test_holding_ps_hides_and_shows_a_running_hud(self):
+        d = make()
+        with_launcher(d)
+        d.watchers.add(object())    # a HUD is watching
+        for expected in (True, False):
+            key(d, PS, True)
+            d.ps_down_at -= 2
+            key(d, PS, False)
+            self.assertEqual(d.snapshot()["hud_hidden"], expected)
+        self.assertTrue(d.armed)
+
+    def test_the_hold_fires_before_you_let_go(self):
+        d = make()
+        launched = with_launcher(d)
+        d.cfg["hud"]["toggle_hold_s"] = 0.05
+
+        async def go():
+            key(d, PS, True)
+            await asyncio.sleep(0.15)
+            fired_while_held = list(launched)
+            key(d, PS, False)
+            return fired_while_held
+
+        self.assertEqual(asyncio.run(go()), [True])
+        self.assertEqual(launched, [True])   # letting go doesn't toggle again
+        self.assertTrue(d.armed)             # or disarm
+
+
 if __name__ == "__main__":
     unittest.main()

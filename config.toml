@@ -144,6 +144,7 @@ scale = 1.0               # 1.5 or 2 for high-DPI screens
 opacity = 0.96
 show_details = true       # false hides your prompt and commands (handy when screen sharing)
 click_through = false     # true: clicks pass through it, but you can't drag it either
+toggle_hold_s = 1.5       # hold PS this long to hide or show the HUD (a short press still arms)
 claude_settings = "~/.claude/settings.json"  # read once for the starting model and effort
 
 [ffb]
