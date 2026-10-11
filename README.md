@@ -121,15 +121,14 @@ Tips:
 
 ## Floating HUD
 
-<img src="docs/img/hud.png" alt="The HUD: Claude working, Claude needing you, a gear change to Opus, and Type mode picking the next letter" width="100%">
+<img src="docs/img/hud.png" alt="The HUD: rev lights while Claude works, flashing red when it needs you, a gear change to Opus, and Type mode picking the next letter" width="100%">
 
-A small racing-style dashboard that floats in the bottom-left corner of your screen:
+A small sim-racing dashboard that floats in the bottom-right corner of your screen:
 
-- **Gear and model:** the gear the shifter is in and the model it picked. It starts from the model in your Claude Code settings.
-- **Claude's status:** a ring around the wheel spins amber with a timer while Claude works, pulses red when it needs your permission, and glows green when it's done.
-- **Steering:** the wheel turns with yours.
-- **Pedals and effort:** clutch, brake and gas bars, plus the `/effort` level.
-- **Type mode:** the letter you're on, its neighbours, and the word so far.
+- **Rev lights show what Claude is doing.** The F1-style strip revs up and down while Claude works, flashes red when it needs your permission, and turns green when it's done. The status line shows a timer.
+- **Input trace.** Gas, brake, clutch and steering scroll past like a telemetry overlay, with live pedal bars beside it.
+- **Wheel dial.** The rim turns with your real wheel, the gear sits in the middle, and the model is shown underneath. The arc around it is your `/effort` level, with max in the red. The model starts from your Claude Code settings.
+- **Type mode.** The trace makes way for the letter picker: the letter you're on, its neighbours, and the word so far.
 
 It never takes keyboard focus and clicks pass straight through it, so the wheel keeps typing into Claude.
 
@@ -139,7 +138,7 @@ pipx install 'g923-claude[hud]'     # from PyPI, then run: g923-hud
 g923-hud --demo                     # preview it without a wheel
 ```
 
-Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
+Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. The bundled Titillium Web font is under the SIL Open Font License (`g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
 
 ## How it works
 

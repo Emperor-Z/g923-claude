@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 - Type mode: holding ○ repeats backspace like a keyboard key, then switches to deleting whole words (`Ctrl+W`); timings configurable in `[type]`
-- `g923-hud`: a floating racing-style dashboard showing gear, model, effort, Claude's status, steering, pedals and the Type mode letter picker. Optional install: `pip install 'g923-claude[hud]'` or `./install.sh --hud`
+- `g923-hud`: a floating sim-racing dashboard: rev lights for Claude's status, a scrolling pedal and steering trace, and a wheel dial showing gear, model and effort, plus the Type mode letter picker. Optional install: `pip install 'g923-claude[hud]'` or `./install.sh --hud`
 - The daemon streams its live state to anything that sends `watch` on its socket
 
 ### Changed
