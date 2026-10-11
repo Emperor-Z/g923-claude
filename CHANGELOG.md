@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.1] - 2026-10-11
 
 ### Added
 - The HUD can be dragged anywhere and remembers where; double-click snaps it back to its corner, and hovering shows a × to close it. `click_through = true` brings back the old pass-through behaviour
@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 - A short PS press now arms or disarms when you let go, so a hold isn't mistaken for a press
+- `install.sh` mentions dragging the HUD and the PS shortcut
 
 ## [0.6.0] - 2026-10-11
 
