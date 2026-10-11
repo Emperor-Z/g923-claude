@@ -7,6 +7,7 @@ heard; otherwise they fall back to sound.
 
 import shutil
 import subprocess
+import time
 
 SOUNDS = {
     "done": "complete",
@@ -23,6 +24,7 @@ class Feedback:
         self.has_notify = shutil.which("notify-send") is not None
         self.has_sound = shutil.which("canberra-gtk-play") is not None
         self.wheel = None
+        self.last_notice = None  # shown on the HUD
 
     def attach_wheel(self, dev, ffb_cfg):
         from .ffb import Wheel
@@ -43,6 +45,7 @@ class Feedback:
 
     def notify(self, title, body=""):
         print(f"[notify] {title} {body}".rstrip(), flush=True)
+        self.last_notice = {"title": title, "body": body, "at": time.time()}
         if self.cfg.get("notify") and self.has_notify:
             self._spawn(["notify-send", "-a", "g923-claude", "-t", "2000",
                          "-h", "string:x-canonical-private-synchronous:g923", title, body])

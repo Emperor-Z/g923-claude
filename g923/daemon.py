@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
@@ -10,7 +11,7 @@ from evdev import ecodes as e
 from . import config
 from .feedback import Feedback
 from .keys import DryRun, Injector
-from .typing import Typer
+from .typing import SET_NAMES, Typer
 
 HATS = {
     ("ABS_HAT0Y", -1): "dpad_up", ("ABS_HAT0Y", 1): "dpad_down",
@@ -39,9 +40,10 @@ class Pedal:
         # Start latched so a bogus first reading can't fire; the first real
         # report (pedal at rest) releases it.
         self.down = True
+        self.amount = 0.0
 
     def update(self, value):
-        amount = (255 - value) / 255
+        amount = self.amount = (255 - value) / 255
         if not self.down and amount >= self.press_at:
             self.down = True
             return "press"
@@ -52,7 +54,7 @@ class Pedal:
 
 
 class Daemon:
-    def __init__(self, cfg, out, fb, typer=None):
+    def __init__(self, cfg, out, fb, typer=None, claude=None):
         self.cfg = cfg
         self.out = out
         self.fb = fb
@@ -69,10 +71,18 @@ class Daemon:
         self.steer_value = s["center"]  # absinfo reads 0 until the first report
         self.scroll_acc = 0.0
         self.held = set()
+        claude = claude or {}  # Claude Code's settings.json, for the starting model and effort
         eff = cfg["effort"]
-        self.effort = eff["levels"].index(eff["start"])
+        start = claude.get("effortLevel", eff["start"])
+        self.effort = eff["levels"].index(start if start in eff["levels"] else eff["start"])
         self.claude_state = "idle"  # idle | busy | attention, from hooks
         self.backspace_task = None
+        self.busy_since = None
+        self.done_at = None
+        self.model = claude.get("model")  # updated when you shift gear
+        self.gear = None                   # the gear the shifter is in, if any
+        self.connected = False
+        self.watchers = set()
 
     # --- input dispatch -------------------------------------------------
 
@@ -95,6 +105,12 @@ class Daemon:
                     self.button(HATS[(axis, direction)], ev.value == direction)
 
     def button(self, name, down):
+        if name.startswith("gear_"):
+            label = name.removeprefix("gear_").upper()
+            if down:
+                self.gear = label
+            elif self.gear == label:
+                self.gear = None
         if down and self.armed and self.claude_state == "attention":
             self.claude_state = "busy"
         if name == self.cfg["modes"]["arm_toggle"]:
@@ -225,6 +241,9 @@ class Daemon:
             return
         self.clutch_used = True
         commands = self.cfg["shifter"].get(gear, [])
+        for cmd in commands:
+            if cmd.startswith("/model "):
+                self.model = cmd.split(None, 1)[1]
         label = gear.removeprefix("gear_").upper()
         self.fb.notify(f"Gear {label}", ", ".join(commands))
         self.run_commands(commands)
@@ -277,9 +296,13 @@ class Daemon:
     def hook_event(self, msg):
         """Handle a message from bin/g923-ping (sent by Claude Code hooks)."""
         if msg == "busy":
+            if self.claude_state == "idle":
+                self.busy_since = time.time()
             self.claude_state = "busy"
         elif msg == "done":
             self.claude_state = "idle"
+            self.busy_since = None
+            self.done_at = time.time()
             self.fb.done()
         elif msg == "attention":
             if self.claude_state != "attention":
@@ -300,7 +323,11 @@ class Daemon:
         async def client(reader, writer):
             try:
                 data = await asyncio.wait_for(reader.read(256), timeout=1)
-                for msg in data.decode(errors="replace").split():
+                msgs = data.decode(errors="replace").split()
+                if msgs == ["watch"]:
+                    await self.watch(reader, writer)
+                    return
+                for msg in msgs:
                     self.hook_event(msg)
             except (asyncio.TimeoutError, ConnectionError):
                 pass
@@ -311,6 +338,68 @@ class Daemon:
         os.chmod(path, 0o600)
         print(f"listening for hooks on {path}", flush=True)
         return server
+
+    # --- live state for the HUD -------------------------------------------
+
+    def snapshot(self):
+        """Everything the on-screen HUD shows, as plain JSON-able data."""
+        s = self.cfg["steering"]
+        levels = self.cfg["effort"]["levels"]
+        t = self.typer
+        notice = vars(self.fb).get("last_notice")
+        return {
+            "connected": self.connected,
+            "armed": self.armed,
+            "mode": self.mode,
+            "claude": self.claude_state,
+            "busy_since": self.busy_since,
+            "done_at": self.done_at,
+            "gear": self.gear,
+            "model": self.model,
+            "effort": levels[self.effort],
+            "effort_levels": levels,
+            "steer_deg": round((self.steer_value - s["center"]) / s["units_per_degree"], 1),
+            "pedals": {n: round(p.amount, 2) for n, p in self.pedals.items()},
+            "type": {
+                "set": SET_NAMES[t.set_idx] if t.set_idx < len(SET_NAMES) else f"set {t.set_idx + 1}",
+                "chars": t.charset,
+                "idx": t.char_idx,
+                "preview": t.preview,
+                "word": t.word + (t.suggestion[2] if t.suggestion else ""),
+            },
+            "notice": notice,
+        }
+
+    async def watch(self, reader, writer):
+        """Stream state to a HUD until it disconnects."""
+        self.watchers.add(writer)
+        try:
+            writer.write((json.dumps(self.snapshot()) + "\n").encode())
+            while await reader.read(256):
+                pass
+        except ConnectionError:
+            pass
+        finally:
+            self.watchers.discard(writer)
+
+    async def publish_loop(self):
+        """Send the state to watching HUDs whenever it changes (up to 30 times a second)."""
+        last = None
+        while True:
+            await asyncio.sleep(1 / 30)
+            if not self.watchers:
+                last = None
+                continue
+            line = json.dumps(self.snapshot())
+            if line == last:
+                continue
+            last = line
+            for w in list(self.watchers):
+                if w.is_closing() or w.transport.get_write_buffer_size() > 1 << 16:
+                    self.watchers.discard(w)  # gone, or too slow to keep up
+                    w.close()
+                    continue
+                w.write((line + "\n").encode())
 
     async def attention_loop(self):
         """Keep nudging while a permission prompt is waiting."""
@@ -357,7 +446,8 @@ class Daemon:
         name = self.cfg["device"]["name_match"]
         server = await self.serve_hooks()
         tasks = [asyncio.create_task(self.scroll_loop()),
-                 asyncio.create_task(self.attention_loop())]
+                 asyncio.create_task(self.attention_loop()),
+                 asyncio.create_task(self.publish_loop())]
         try:
             while True:
                 dev = find_device(name)
@@ -366,6 +456,7 @@ class Daemon:
                     await asyncio.sleep(2)
                     continue
                 print(f"connected: {dev.name} ({dev.path})", flush=True)
+                self.connected = True
                 if hasattr(self.fb, "attach_wheel"):
                     self.fb.attach_wheel(dev, self.cfg.get("ffb", {}))
                 try:
@@ -375,12 +466,24 @@ class Daemon:
                     self.release_all()
                     await asyncio.sleep(1)
                 finally:
+                    self.connected = False
                     if hasattr(self.fb, "detach_wheel"):
                         self.fb.detach_wheel()
         finally:
             for t in tasks:
                 t.cancel()
             server.close()
+
+
+def claude_settings(cfg):
+    """Claude Code's own settings, for the model and effort it starts with."""
+    path = cfg.get("hud", {}).get("claude_settings", "~/.claude/settings.json")
+    try:
+        with open(config.expand(path)) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def dump(cfg):
@@ -431,7 +534,7 @@ def main():
     if args.test_ffb:
         return test_ffb(cfg, args.test_ffb)
     out = DryRun() if args.dry_run else Injector()
-    daemon = Daemon(cfg, out, Feedback(cfg))
+    daemon = Daemon(cfg, out, Feedback(cfg), claude=claude_settings(cfg))
     try:
         asyncio.run(daemon.run())
     except KeyboardInterrupt:
