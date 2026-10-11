@@ -44,6 +44,24 @@ class HelpersTest(unittest.TestCase):
         self.assertTrue(any(f["tool"] for f in frames) and any(f["approval"] for f in frames))
 
 
+class PositionTest(unittest.TestCase):
+    def test_round_trip_and_forget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "state", "hud.json")
+            self.assertIsNone(hud.load_position(path))
+            hud.save_position((1500, 820), path)
+            self.assertEqual(hud.load_position(path), (1500, 820))
+            hud.save_position(None, path)
+            self.assertIsNone(hud.load_position(path))
+
+    def test_a_broken_file_means_the_corner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "hud.json")
+            with open(path, "w") as f:
+                f.write("{not json")
+            self.assertIsNone(hud.load_position(path))
+
+
 @unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class RenderTest(unittest.TestCase):
     def test_every_demo_frame_renders(self):

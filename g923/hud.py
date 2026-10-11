@@ -11,8 +11,9 @@ the model underneath, next to live pedal bars. In Type mode the left side
 shows the word and the letter picker instead.
 
 It never takes focus and clicks go straight through it, so the wheel's key
-presses still reach Claude. It watches g923d over the same socket the Claude
-Code hooks use. Needs the optional Qt dependency: pipx install 'g923-claude[hud]'.
+presses still reach Claude. Drag it anywhere (it remembers), double-click to
+snap it back to its corner, and hover for a × that closes it. It watches g923d
+over the same socket the Claude Code hooks use. Needs the optional Qt dependency: pipx install 'g923-claude[hud]'.
 """
 
 import argparse
@@ -28,6 +29,8 @@ from . import config
 W, H = 460, 150     # the card; the window adds room for its shadow
 PAD = 14
 FONT_DIR = Path(__file__).with_name("fonts")
+POSITION_FILE = (Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
+                 / "g923-claude" / "hud.json")
 COLORS = {
     "card": "#17171b", "text": "#f4f4f5", "muted": "#a1a1aa", "faint": "#71717a",
     "line": "#2a2a31", "chip": "#24242a",
@@ -95,6 +98,28 @@ def doing(tool, details=True):
     if name in ("Grep", "WebSearch") and detail:
         detail = f"“{detail}”"
     return f"{verb} {detail}" if detail else f"{verb}…"
+
+
+def load_position(path=POSITION_FILE):
+    """Where the HUD was last dragged to, as (x, y), or None."""
+    try:
+        data = json.loads(Path(path).read_text())
+        return int(data["x"]), int(data["y"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def save_position(pos, path=POSITION_FILE):
+    """Remember where the HUD was dragged; None forgets it (back to the corner)."""
+    path = Path(path)
+    try:
+        if pos is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"x": pos[0], "y": pos[1]}))
+    except OSError:
+        pass
 
 
 def lit_leds(phase, now, busy_since=None, done_at=None):
@@ -168,7 +193,7 @@ def build(args, cfg):
             and os.environ.get("DISPLAY") and "QT_QPA_PLATFORM" not in os.environ):
         os.environ["QT_QPA_PLATFORM"] = "xcb"
     try:
-        from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+        from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer
         from PySide6.QtGui import (QBrush, QColor, QFont, QFontDatabase, QFontMetricsF,
                                    QGuiApplication, QLinearGradient, QPainter, QPainterPath,
                                    QPen, QRadialGradient)
@@ -246,9 +271,12 @@ def build(args, cfg):
                 self.on_state(state)
 
     class Hud(QWidget):
-        def __init__(self, scale, opacity):
+        def __init__(self, scale, opacity, click_through=False):
             super().__init__()
             self.scale, self.opacity = scale, opacity
+            self.hover = False        # the mouse is over the card: show the close button
+            self.over_close = False
+            self.drag_from = None     # where the card was grabbed, while dragging
             self.state = dict(OFFLINE)
             self.steer = 0.0
             self.pedals = {"clutch": 0.0, "brake": 0.0, "gas": 0.0}
@@ -257,14 +285,20 @@ def build(args, cfg):
             self.gear_changed = 0.0   # when the gear last changed, for a little pop
             self.last_tick = time.monotonic()
             self.setWindowTitle("g923 HUD")
-            self.setWindowFlags(
-                Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
-                | Qt.WindowType.Tool | Qt.WindowType.WindowDoesNotAcceptFocus
-                | Qt.WindowType.WindowTransparentForInput
-                | Qt.WindowType.X11BypassWindowManagerHint)
+            # Never takes keyboard focus, so the wheel keeps typing into Claude
+            # even while you drag the card around.
+            flags = (Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint
+                     | Qt.WindowType.Tool | Qt.WindowType.WindowDoesNotAcceptFocus
+                     | Qt.WindowType.X11BypassWindowManagerHint)
+            if click_through:
+                flags |= Qt.WindowType.WindowTransparentForInput
+                self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            else:
+                self.setMouseTracking(True)
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self.setWindowFlags(flags)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             self.setFixedSize(round((W + 2 * PAD) * scale), round((H + 2 * PAD) * scale))
             self.timer = QTimer(interval=16)
             self.timer.timeout.connect(self.tick)
@@ -289,6 +323,42 @@ def build(args, cfg):
             for name in self.pedals:
                 self.pedals[name] += (s.get("pedals", {}).get(name, 0.0) - self.pedals[name]) * k
             self.update()
+
+        # --- mouse: drag to move, double-click for the corner, × to close ---
+
+        def close_hit(self, pos):
+            c = QPointF((PAD + W - 16) * self.scale, (PAD + 16) * self.scale)
+            return (pos.x() - c.x()) ** 2 + (pos.y() - c.y()) ** 2 <= (11 * self.scale) ** 2
+
+        def enterEvent(self, _):
+            self.hover = True
+
+        def leaveEvent(self, _):
+            self.hover = self.over_close = False
+
+        def mousePressEvent(self, e):
+            if e.button() != Qt.MouseButton.LeftButton:
+                return
+            if self.close_hit(e.position()):
+                QApplication.quit()
+                return
+            self.drag_from = e.globalPosition().toPoint() - self.pos()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+
+        def mouseMoveEvent(self, e):
+            if self.drag_from is not None:
+                self.move(e.globalPosition().toPoint() - self.drag_from)
+            self.over_close = self.close_hit(e.position())
+
+        def mouseReleaseEvent(self, _):
+            if self.drag_from is not None:
+                self.drag_from = None
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+                save_position((self.x(), self.y()))
+
+        def mouseDoubleClickEvent(self, _):
+            save_position(None)
+            place(self)
 
         # --- what to say ------------------------------------------------
 
@@ -338,7 +408,18 @@ def build(args, cfg):
             self.footer(p, s)
             self.pedal_bars(p)
             self.dial(p, s, phase)
+            if self.hover:
+                self.close_button(p)
             p.end()
+
+        def close_button(self, p):
+            c = QPointF(W - 16, 16)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(color("red") if self.over_close else QColor(255, 255, 255, 40))
+            p.drawEllipse(c, 9, 9)
+            p.setPen(pen(QColor("#ffffff"), 1.6))
+            for dx in (-3.2, 3.2):
+                p.drawLine(QPointF(c.x() - dx, c.y() - 3.2), QPointF(c.x() + dx, c.y() + 3.2))
 
         def card(self, p, phase):
             r, slant = 18, 22
@@ -676,7 +757,8 @@ def build(args, cfg):
     app.setApplicationName("g923-hud")
     for ttf in sorted(FONT_DIR.glob("*.ttf")):
         QFontDatabase.addApplicationFont(str(ttf))
-    hud = Hud(hud_cfg.get("scale", 1.0), hud_cfg.get("opacity", 0.96))
+    hud = Hud(hud_cfg.get("scale", 1.0), hud_cfg.get("opacity", 0.96),
+              click_through=hud_cfg.get("click_through", False))
 
     if args.screenshot:
         hud.set_state(demo_state(args.at))
@@ -693,7 +775,12 @@ def build(args, cfg):
         hud._demo = demo
     else:
         hud._feed = Feed(config.expand(cfg["feedback"]["socket"]), hud.set_state)
-    place(hud)
+    saved = load_position()
+    centre = saved and QPoint(saved[0] + hud.width() // 2, saved[1] + hud.height() // 2)
+    if saved and QGuiApplication.screenAt(centre):   # still on a connected screen
+        hud.move(*saved)
+    else:
+        place(hud)
     hud.show()
     return app, hud
 
