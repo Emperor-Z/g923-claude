@@ -31,6 +31,13 @@ if $hud; then
   sed "s|@REPO@|$repo|g" systemd/g923-hud.service > "$unit_dir/g923-hud.service"
 fi
 systemctl --user daemon-reload
-systemctl --user enable --now g923d.service
-$hud && systemctl --user enable --now g923-hud.service && echo "HUD running in the bottom-left corner."
+# Restart rather than just start, so re-running the installer after a pull
+# picks up the new code.
+systemctl --user enable g923d.service
+systemctl --user restart g923d.service
+if $hud; then
+  systemctl --user enable g923-hud.service
+  systemctl --user restart g923-hud.service
+  echo "HUD running in the bottom-right corner (move it with [hud] corner in your config)."
+fi
 echo "g923d running. Focus your Claude Code terminal and press PS to arm."
