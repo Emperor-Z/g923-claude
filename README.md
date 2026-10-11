@@ -131,7 +131,7 @@ A card that floats in the bottom-right corner of your screen: half agent status,
 - **A racing dial:** its rim turns with your real wheel. The gear sits in the middle, `/effort` is the tach arc around it (max is the red zone), and the model is underneath. Live clutch, brake and gas bars sit beside it.
 - **Type mode:** your word, the letter you're on, and its neighbours on the dial.
 
-It never takes keyboard focus and clicks pass straight through it, so the wheel keeps typing into Claude.
+**Drag it anywhere** and it remembers where; double-click to snap it back to its corner. Hover over it for a **×** that closes it (`systemctl --user start g923-hud` brings it back). It never takes keyboard focus, so the wheel keeps typing into Claude even while you move it. Prefer clicks to pass straight through it? Set `click_through = true`.
 
 ```bash
 ./install.sh --hud                  # from a clone: adds Qt and starts it as a user service
@@ -139,7 +139,7 @@ pipx install 'g923-claude[hud]'     # from PyPI, then run: g923-hud
 g923-hud --demo                     # preview it without a wheel
 ```
 
-Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. Set `show_details = false` to keep your prompts and commands off the card when you share your screen. The gear and model use the bundled Titillium Web font (SIL Open Font License, `g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
+Qt adds about 250 MB, which is why the HUD is optional. Its starting place and size are in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. Set `show_details = false` to keep your prompts and commands off the card when you share your screen. The gear and model use the bundled Titillium Web font (SIL Open Font License, `g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
 
 ## How it works
 
