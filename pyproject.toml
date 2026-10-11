@@ -16,6 +16,9 @@ classifiers = [
   "Topic :: Software Development",
 ]
 
+[project.optional-dependencies]
+hud = ["PySide6-Essentials>=6.5"]
+
 [project.urls]
 Repository = "https://github.com/Emperor-Z/g923-claude"
 
@@ -23,6 +26,7 @@ Repository = "https://github.com/Emperor-Z/g923-claude"
 g923d = "g923.daemon:main"
 g923-ping = "g923.ping:main"
 g923-hooks = "g923.hooks:main"
+g923-hud = "g923.hud:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["g923"]

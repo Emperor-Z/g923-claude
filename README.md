@@ -40,6 +40,8 @@ cd g923-claude && ./install.sh
 
 Open Claude Code, focus the terminal, press **PS** on the wheel. You're driving.
 
+Want the [floating HUD](#floating-hud) too? Run `./install.sh --hud`.
+
 ## Controls
 
 <img src="docs/img/controls.svg" alt="Controls: wheel buttons, pedals and shifter mapped to Claude Code actions" width="100%">
@@ -117,6 +119,27 @@ Tips:
 - Paddles, pedals, gears and the other buttons keep their Drive mode actions while you type.
 - For long prompts, hold L3 for voice dictation instead.
 
+## Floating HUD
+
+<img src="docs/img/hud.png" alt="The HUD: rev lights while Claude works, flashing red when it needs you, a gear change to Opus, and Type mode picking the next letter" width="100%">
+
+A small sim-racing dashboard that floats in the bottom-right corner of your screen:
+
+- **Rev lights show what Claude is doing.** The F1-style strip revs up and down while Claude works, flashes red when it needs your permission, and turns green when it's done. The status line shows a timer.
+- **Input trace.** Gas, brake, clutch and steering scroll past like a telemetry overlay, with live pedal bars beside it.
+- **Wheel dial.** The rim turns with your real wheel, the gear sits in the middle, and the model is shown underneath. The arc around it is your `/effort` level, with max in the red. The model starts from your Claude Code settings.
+- **Type mode.** The trace makes way for the letter picker: the letter you're on, its neighbours, and the word so far.
+
+It never takes keyboard focus and clicks pass straight through it, so the wheel keeps typing into Claude.
+
+```bash
+./install.sh --hud                  # from a clone: adds Qt and starts it as a user service
+pipx install 'g923-claude[hud]'     # from PyPI, then run: g923-hud
+g923-hud --demo                     # preview it without a wheel
+```
+
+Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. The bundled Titillium Web font is under the SIL Open Font License (`g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
+
 ## How it works
 
 ```
@@ -125,7 +148,9 @@ Tips:
                    │
                    ◀── Unix socket ◀── Claude Code hooks (prompt submitted, stop, permission)
                    │
-                   └─▶ feedback: force feedback on the wheel, or notification + sound
+                   ├─▶ feedback: force feedback on the wheel, or notification + sound
+                   │
+                   └─▶ live state on the same socket ──▶ g923-hud (optional floating dashboard)
 ```
 
 The daemon reads the wheel through evdev and types into whichever window has focus through a virtual uinput keyboard, so it works on any Wayland compositor (GNOME included) and X11. Claude Code hooks report back over a Unix socket so the wheel can react.
@@ -263,6 +288,7 @@ Keys go to whichever window is focused. The daemon starts **disarmed** — press
 - [x] Phase 3 — Type mode with word suggestions
 - [x] Phase 4 — Claude Code hooks, feedback, systemd service, installer
 - [x] Phase 5 — force feedback effects (new-lg4ff for the PS G923)
+- [x] Floating HUD
 - [ ] Rev LEDs showing Claude's context usage
 
 ## Supported hardware
