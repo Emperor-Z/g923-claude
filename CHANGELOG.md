@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-11
 
 ### Added
 - Type mode: holding ○ repeats backspace like a keyboard key, then switches to deleting whole words (`Ctrl+W`); timings configurable in `[type]`
@@ -10,8 +10,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - A `PreToolUse` hook, and the hooks now pass along the prompt, tool and command so the HUD can show them (only over the local socket)
 - Type mode suggestions work like a phone keyboard: three words on offer at all times, picked with the left paddle, △ or the right paddle (□ for more), including next-word prediction learned from your past prompts
 - The daemon streams its live state to anything that sends `watch` on its socket
+- README: using it in VS Code, both the integrated terminal and the Claude Code extension's chat panel
 
 ### Changed
+- `install.sh` restarts the services, so re-running it after a pull picks up new code
 - Type mode: □ now shows more suggestions and △ types the best one; the inline suggestion cycling is gone. In Type mode the paddles pick words, except in `/` and `@` menus
 - The starting model and effort level come from Claude Code's `~/.claude/settings.json` when set, so +/− step from your real effort level
 
