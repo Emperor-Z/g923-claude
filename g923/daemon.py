@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import time
+from collections import deque
 
 import evdev
 from evdev import ecodes as e
@@ -83,6 +84,13 @@ class Daemon:
         self.gear = None                   # the gear the shifter is in, if any
         self.connected = False
         self.watchers = set()
+        # What Claude is up to, from the hooks' details (shown on the HUD).
+        self.session = None    # project folder name
+        self.task = None       # the prompt being worked on
+        self.tool = None       # {"name", "detail"} of the tool running now
+        self.approval = None   # {"name", "detail"} of the tool waiting for a yes
+        self.trail = deque(maxlen=4)  # names of the last few finished tools
+        self.steps = 0
 
     # --- input dispatch -------------------------------------------------
 
@@ -293,23 +301,47 @@ class Daemon:
 
     # --- Claude Code hooks ------------------------------------------------
 
-    def hook_event(self, msg):
-        """Handle a message from bin/g923-ping (sent by Claude Code hooks)."""
+    def hook_event(self, msg, info=None):
+        """Handle a message from bin/g923-ping (sent by Claude Code hooks).
+
+        `info` is what the hook told us: the session, prompt, tool and detail.
+        """
+        info = info or {}
+        if info.get("session"):
+            self.session = info["session"]
+        tool = {"name": info["tool"], "detail": info.get("detail", "")} if info.get("tool") else None
         if msg == "busy":
             if self.claude_state == "idle":
                 self.busy_since = time.time()
+            if "prompt" in info:  # a new prompt starts a new turn
+                self.task = info["prompt"]
+                self.tool, self.approval = None, None
+                self.trail.clear()
+                self.steps = 0
             self.claude_state = "busy"
+        elif msg == "tool":
+            if self.claude_state == "idle":
+                self.busy_since = time.time()
+                self.claude_state = "busy"
+            self.tool = tool
         elif msg == "done":
             self.claude_state = "idle"
             self.busy_since = None
             self.done_at = time.time()
+            self.tool, self.approval = None, None
             self.fb.done()
         elif msg == "attention":
+            self.approval = tool or self.tool
             if self.claude_state != "attention":
                 self.claude_state = "attention"
                 self.fb.notify("Claude needs you", "Permission requested")
                 self.fb.attention()
         elif msg == "clear":
+            finished = tool or self.tool
+            if finished:
+                self.trail.append(finished["name"])
+                self.steps += 1
+            self.tool, self.approval = None, None
             if self.claude_state == "attention":
                 self.claude_state = "busy"
         else:
@@ -322,12 +354,22 @@ class Daemon:
 
         async def client(reader, writer):
             try:
-                data = await asyncio.wait_for(reader.read(256), timeout=1)
-                msgs = data.decode(errors="replace").split()
-                if msgs == ["watch"]:
+                data = await asyncio.wait_for(reader.read(4096), timeout=1)
+                if data.strip() == b"watch":
                     await self.watch(reader, writer)
                     return
-                for msg in msgs:
+                # Hooks send one message and hang up, so read to the end.
+                data += await asyncio.wait_for(reader.read(), timeout=1)
+                text = data.decode(errors="replace").strip()
+                if text.startswith("{"):
+                    try:
+                        info = json.loads(text)
+                    except ValueError:
+                        info = {}
+                    if isinstance(info, dict) and isinstance(info.get("event"), str):
+                        self.hook_event(info["event"], info)
+                    return
+                for msg in text.split():
                     self.hook_event(msg)
             except (asyncio.TimeoutError, ConnectionError):
                 pass
@@ -368,6 +410,12 @@ class Daemon:
                 "word": t.word + (t.suggestion[2] if t.suggestion else ""),
             },
             "notice": notice,
+            "session": self.session,
+            "task": self.task,
+            "tool": self.tool,
+            "approval": self.approval,
+            "trail": list(self.trail),
+            "steps": self.steps,
         }
 
     async def watch(self, reader, writer):

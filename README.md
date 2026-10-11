@@ -121,14 +121,15 @@ Tips:
 
 ## Floating HUD
 
-<img src="docs/img/hud.png" alt="The HUD: rev lights while Claude works, flashing red when it needs you, a gear change to Opus, and Type mode picking the next letter" width="100%">
+<img src="docs/img/hud.png" alt="The HUD: Claude editing a file, asking to run a command with the wheel buttons that answer it, done with its steps listed, and Type mode picking the next letter" width="100%">
 
-A small sim-racing dashboard that floats in the bottom-right corner of your screen:
+A card that floats in the bottom-right corner of your screen: half agent status, half racing dash.
 
-- **Rev lights show what Claude is doing.** The F1-style strip revs up and down while Claude works, flashes red when it needs your permission, and turns green when it's done. The status line shows a timer.
-- **Input trace.** Gas, brake, clutch and steering scroll past like a telemetry overlay, with live pedal bars beside it.
-- **Wheel dial.** The rim turns with your real wheel, the gear sits in the middle, and the model is shown underneath. The arc around it is your `/effort` level, with max in the red. The model starts from your Claude Code settings.
-- **Type mode.** The trace makes way for the letter picker: the letter you're on, its neighbours, and the word so far.
+- **What Claude is doing, in plain words:** "Thinking…", "Editing hud.py", "Running npm test", with a timer, your prompt, and the steps so far as breadcrumbs (Read ✓ › Grep ✓ › Edit). It ends with "Done in 1:42".
+- **F1 rev lights as the status light:** they rev while Claude works (faster while a tool runs), flash amber when it needs you, and go green when it's done.
+- **Approvals you answer from the wheel:** the card turns amber and shows the command along with the buttons that answer it: ✕ Yes, □ Always, ○ No.
+- **A racing dial:** its rim turns with your real wheel. The gear sits in the middle, `/effort` is the tach arc around it (max is the red zone), and the model is underneath. Live clutch, brake and gas bars sit beside it.
+- **Type mode:** your word, the letter you're on, and its neighbours on the dial.
 
 It never takes keyboard focus and clicks pass straight through it, so the wheel keeps typing into Claude.
 
@@ -138,7 +139,7 @@ pipx install 'g923-claude[hud]'     # from PyPI, then run: g923-hud
 g923-hud --demo                     # preview it without a wheel
 ```
 
-Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. The bundled Titillium Web font is under the SIL Open Font License (`g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
+Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the `[hud]` section of your config, with `screen` (for example `"HDMI-1"`), `corner`, `margin`, `scale` and `opacity`. Set `show_details = false` to keep your prompts and commands off the card when you share your screen. The gear and model use the bundled Titillium Web font (SIL Open Font License, `g923/fonts/OFL.txt`). On GNOME Wayland it runs through XWayland, the only way an app can stay on top in a corner there.
 
 ## How it works
 
@@ -150,7 +151,7 @@ Qt adds about 250 MB, which is why the HUD is optional. Move or resize it in the
                    │
                    ├─▶ feedback: force feedback on the wheel, or notification + sound
                    │
-                   └─▶ live state on the same socket ──▶ g923-hud (optional floating dashboard)
+                   └─▶ live state on the same socket ──▶ g923-hud (optional on-screen HUD)
 ```
 
 The daemon reads the wheel through evdev and types into whichever window has focus through a virtual uinput keyboard, so it works on any Wayland compositor (GNOME included) and X11. Claude Code hooks report back over a Unix socket so the wheel can react.
@@ -201,7 +202,8 @@ Hooks tell the daemon what Claude is doing via `bin/g923-ping`, a tiny client th
 
 | Hook | Message | Wheel reaction |
 |---|---|---|
-| `UserPromptSubmit` | `busy` | — |
+| `UserPromptSubmit` | `busy` | — (the HUD shows your prompt) |
+| `PreToolUse` | `tool` | — (the HUD shows what Claude is running) |
 | `Stop` | `done` | Two quick kicks on the wheel (or a chime without force feedback) |
 | `PermissionRequest` | `attention` | Notification + side-to-side wiggle (or warning sound), repeated every 3 s until you answer |
 | `PostToolUse` | `clear` | Stops the repeat |

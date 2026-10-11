@@ -13,9 +13,10 @@ from pathlib import Path
 SETTINGS = Path.home() / ".claude" / "settings.json"
 EVENTS = {
     "UserPromptSubmit": "busy",
-    "Stop": "done",
+    "PreToolUse": "tool",
     "PermissionRequest": "attention",
     "PostToolUse": "clear",
+    "Stop": "done",
 }
 
 

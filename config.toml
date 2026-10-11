@@ -134,12 +134,13 @@ sound = true
 attention_repeat_s = 3
 
 [hud]
-# The floating dashboard: run g923-hud (needs: pipx install 'g923-claude[hud]').
+# The floating status card: run g923-hud (needs: pipx install 'g923-claude[hud]').
 screen = "primary"        # or an output name such as "eDP-1" or "HDMI-1"
 corner = "bottom-right"   # bottom-right, bottom-left, top-right or top-left
 margin = 24               # pixels from the screen edges
 scale = 1.0               # 1.5 or 2 for high-DPI screens
-opacity = 0.94
+opacity = 0.96
+show_details = true       # false hides your prompt and commands (handy when screen sharing)
 claude_settings = "~/.claude/settings.json"  # read once for the starting model and effort
 
 [ffb]
