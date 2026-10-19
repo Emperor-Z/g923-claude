@@ -10,7 +10,7 @@ And the wheel buzzes when Claude needs you.
 [![PyPI](https://img.shields.io/pypi/v/g923-claude?color=3775a9)](https://pypi.org/project/g923-claude/)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776ab)](pyproject.toml)
 [![Platform](https://img.shields.io/badge/platform-Linux-informational)](#install)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Emperor-Z/g923-claude?style=social)](https://github.com/Emperor-Z/g923-claude/stargazers)
 
 [Quick start](#quick-start) · [Controls](#controls) · [How it works](#how-it-works) · [Other wheels](#supported-hardware) · [Contributing](CONTRIBUTING.md)
@@ -330,4 +330,4 @@ Bug reports, wheel configs and new feedback ideas are all welcome. Start with [C
 
 ## License
 
-[MIT](LICENSE). Not affiliated with Logitech or Anthropic. "G923" and "Claude" are trademarks of their respective owners.
+[Apache-2.0](LICENSE). Not affiliated with Logitech or Anthropic. "G923" and "Claude" are trademarks of their respective owners.

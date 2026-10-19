@@ -61,7 +61,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Drive Claude Code with a Logitech G923
-            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.licenses=Apache-2.0
 
   pypi:
     # Trusted publishing: no token needed once the repo is registered as a

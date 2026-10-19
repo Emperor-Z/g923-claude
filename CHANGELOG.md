@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- License changed from MIT to Apache-2.0. Releases up to 0.6.1 stay available under MIT
+
 ## [0.6.1] - 2026-10-11
 
 ### Added
